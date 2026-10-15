@@ -1,0 +1,20 @@
+name = "aston-os-intelligence-lab"
+main = "nextgen/index.js"
+compatibility_date = "2026-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[vars]
+ASTON_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+
+[ai]
+binding = "AI"
+
+# Intentionally isolated: no production D1, KV, R2, Queue, or Durable Object bindings.
+# Configure ASTON_API_TOKEN as a Worker secret before using the solve endpoint:
+# npx wrangler secret put ASTON_API_TOKEN --config wrangler.nextgen.toml
+# Test locally: node nextgen/test.mjs
+# Dry run: npx wrangler deploy --dry-run --config wrangler.nextgen.toml
+# Deploy only this isolated lab: npx wrangler deploy --config wrangler.nextgen.toml
