@@ -1,0 +1,32 @@
+name: ASTON Intelligence Lab
+
+on:
+  pull_request:
+    paths:
+      - "nextgen/**"
+      - "wrangler.nextgen.toml"
+      - "docs/ASTON-INTELLIGENCE-LAB.md"
+      - ".github/workflows/intelligence-lab.yml"
+  push:
+    branches:
+      - "feature/aston-intelligence-lab-v1"
+    paths:
+      - "nextgen/**"
+      - "wrangler.nextgen.toml"
+      - "docs/ASTON-INTELLIGENCE-LAB.md"
+      - ".github/workflows/intelligence-lab.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test isolated Worker behavior
+        run: node nextgen/test.mjs
+      - name: Install Wrangler
+        run: npm install
+      - name: Validate isolated Worker bundle
+        run: npx wrangler deploy --dry-run --config wrangler.nextgen.toml
