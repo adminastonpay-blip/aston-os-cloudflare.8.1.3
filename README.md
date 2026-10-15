@@ -1,27 +1,19 @@
-# ASTON OS Omni-Core 8.4.0
+# ASTON OS Omni-Core 8.6.0
 
-Edge-native multi-tenant core on Cloudflare Workers.
+## New in 8.6.0
 
-## New in 8.4.0
+### A) Billing (usage + charge)
+- Auto-tracks `ai.chat`, `ai.image`, `agent.run` in the `usage` table
+- `GET /v1/billing/usage` — usage + estimated charge
+- `POST /v1/billing/charge` — posts charge to ledger (admin)
+- Prices (minor units): `PRICE_AI_CHAT_MINOR` (default 1), `PRICE_AI_IMAGE_MINOR` (10), `PRICE_AGENT_RUN_MINOR` (5), `BILLING_CURRENCY` (USD)
 
-- **Semantic search** (`POST /v1/search/semantic`) via Workers AI embeddings + Vectorize
-- **Auto-embed** on record create when AI + Vectorize are bound
-- **Reindex** (`POST /v1/embed/reindex`) for tenant records
-- **Background jobs** (`POST /v1/jobs`, `GET /v1/jobs`) via Queues
-- **Agent runtime** (`POST /v1/agent/run`) per-tenant Durable Object
-- Plugins: `semantic-search`, `jobs`, `agent`
+### B) Commerce vertical (pilot)
+- `POST /v1/commerce/order` — create order (+ optional sales ledger credit)
+- `GET /v1/commerce/orders` — list orders
+- `POST /v1/commerce/support` — commerce support agent
+- `GET /v1/commerce/summary` — orders count + sales by currency
+- `POST /v1/commerce/webhook` — ingest commerce events
 
-## Enable optional resources
-
-```bash
-npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
-npx wrangler queues create aston-global-queue
-npx wrangler deploy
-```
-
-## Deploy
-
-```bash
-npm install
-npx wrangler deploy
-```
+## Auth
+All billing/commerce routes need `Authorization: Bearer <ASTON_API_TOKEN>`.
