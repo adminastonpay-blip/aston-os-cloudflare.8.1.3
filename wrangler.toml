@@ -36,16 +36,12 @@ bindings = [
   { name = "ASTON_SESSION", class_name = "AstonSession" },
   { name = "ASTON_RATE_LIMITER", class_name = "AstonRateLimiter" },
   { name = "ASTON_LEDGER_LOCK", class_name = "AstonLedgerLock" },
-  { name = "ASTON_AGENT", class_name = "AstonAgent" }
 ]
 
 [[migrations]]
 tag = "v1-extreme"
 new_sqlite_classes = ["AstonSession", "AstonRateLimiter", "AstonLedgerLock"]
 
-[[migrations]]
-tag = "v2-agent"
-new_sqlite_classes = ["AstonAgent"]
 
 [triggers]
 crons = ["0 * * * *"]
