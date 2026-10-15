@@ -46,17 +46,5 @@ new_sqlite_classes = ["AstonSession", "AstonRateLimiter", "AstonLedgerLock"]
 [triggers]
 crons = ["0 * * * *"]
 
-# Create first: npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "aston-omni-index"
-
-# Create first: npx wrangler queues create aston-global-queue
-[[queues.producers]]
-binding = "ASTON_QUEUE"
-queue = "aston-global-queue"
-
-[[queues.consumers]]
-queue = "aston-global-queue"
-max_batch_size = 10
-max_retries = 3
+# Optional Vectorize and Queues are intentionally omitted from the base deployment.
+# Add their bindings only after the resources exist and are validated.
