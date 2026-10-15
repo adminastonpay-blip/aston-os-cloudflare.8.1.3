@@ -36,27 +36,33 @@ bindings = [
   { name = "ASTON_SESSION", class_name = "AstonSession" },
   { name = "ASTON_RATE_LIMITER", class_name = "AstonRateLimiter" },
   { name = "ASTON_LEDGER_LOCK", class_name = "AstonLedgerLock" },
+  { name = "ASTON_AGENT", class_name = "AstonAgent" }
 ]
 
 [[migrations]]
 tag = "v1-extreme"
 new_sqlite_classes = ["AstonSession", "AstonRateLimiter", "AstonLedgerLock"]
 
+[[migrations]]
+tag = "v2-agent"
+new_sqlite_classes = ["AstonAgent"]
 
 [triggers]
 crons = ["0 * * * *"]
 
-# Create first: npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "aston-omni-index"
+# OPTIONAL — create first, then uncomment:
+#   npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
+# [[vectorize]]
+# binding = "VECTORIZE"
+# index_name = "aston-omni-index"
 
-# Create first: npx wrangler queues create aston-global-queue
-[[queues.producers]]
-binding = "ASTON_QUEUE"
-queue = "aston-global-queue"
-
-[[queues.consumers]]
-queue = "aston-global-queue"
-max_batch_size = 10
-max_retries = 3
+# OPTIONAL — create first, then uncomment:
+#   npx wrangler queues create aston-global-queue
+# [[queues.producers]]
+# binding = "ASTON_QUEUE"
+# queue = "aston-global-queue"
+#
+# [[queues.consumers]]
+# queue = "aston-global-queue"
+# max_batch_size = 10
+# max_retries = 3
