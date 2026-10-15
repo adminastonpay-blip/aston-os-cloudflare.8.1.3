@@ -1,10 +1,10 @@
-# ASTON OS Omni-Core 8.1.5 — Cloudflare Worker
+# ASTON OS Omni-Core 8.1.6 — Cloudflare Worker
 
 ## Corrección del punto de entrada
 
 Esta versión elimina la carpeta duplicada `src/` para evitar ambigüedades. El punto de entrada es `index.js` en la raíz y `wrangler.toml` declara `main = "index.js"`.
 
-La estructura del repositorio debe quedar exactamente así (sin carpeta contenedora adicional):
+La estructura del repositorio debe quedar exactamente así (con los archivos directamente en la raíz del ZIP):
 
 ```text
 wrangler.toml
