@@ -1,38 +1,43 @@
-# ASTON OS Omni-Core 8.1.3 — Cloudflare Worker
+# ASTON OS Omni-Core 8.1.5 — Cloudflare Worker
 
-## Corrección de empaquetado
-Este ZIP está preparado con los archivos directamente en la raíz del proyecto. Al subirlo a GitHub, la estructura debe quedar así (sin una carpeta extra envolviendo todo):
+## Corrección del punto de entrada
+
+Esta versión elimina la carpeta duplicada `src/` para evitar ambigüedades. El punto de entrada es `index.js` en la raíz y `wrangler.toml` declara `main = "index.js"`.
+
+La estructura del repositorio debe quedar exactamente así (sin carpeta contenedora adicional):
 
 ```text
 wrangler.toml
+index.js
 package.json
 schema.sql
-src/index.js
 test/run.mjs
+.gitignore
 ```
 
-El error `The entry-point file at "src/index.js" was not found` ocurre cuando Cloudflare está ejecutando Wrangler desde una raíz que no contiene `src/index.js`, normalmente por una carpeta raíz mal seleccionada o porque el ZIP se subió con una carpeta contenedora adicional.
+## Pasos para GitHub y Cloudflare
 
-## GitHub / Cloudflare
-1. Descargá y extraé el ZIP.
-2. Subí **el contenido** del ZIP al nivel raíz del repositorio (no la carpeta contenedora).
-3. En Cloudflare Workers > Settings > Builds, dejá Root directory vacío o configurado en la carpeta donde están `wrangler.toml` y `src/index.js`.
-4. Build command: `npm install` (o `bun install`, si el proyecto usa Bun).
+1. Descargá y extraé este ZIP.
+2. En el repositorio destinado al Worker, reemplazá los archivos del proyecto por el contenido del ZIP. No subas la carpeta contenedora ni mezcles versiones anteriores.
+3. En Cloudflare Workers Builds, configurá `Root directory` como vacío si los archivos están en la raíz del repositorio.
+4. Build command: `npm install` (o `bun install`).
 5. Deploy command: `npx wrangler deploy`.
-6. Verificá que `wrangler.toml` tenga `main = "src/index.js"` y que el archivo exista en esa misma raíz.
+6. Confirmá en el log que Wrangler carga `main = "index.js"`, no `src/index.js`.
 
 ## Validación local
+
 ```bash
-npm install
+node --check index.js
 npm test
 npm run check
 ```
-`npm run check` requiere dependencias instaladas y valida el bundle de Wrangler sin publicar el Worker. `npm run deploy` sí publica; ejecutalo solo cuando estés listo.
 
-## Recursos Cloudflare
-`wrangler.toml` conserva los bindings y los identificadores configurados en la versión de trabajo. Antes de desplegar, confirmá que los nombres e IDs correspondan a los recursos de tu cuenta. No compartas API tokens ni secretos en el repositorio o el chat.
+`npm run check` hace un dry-run y no publica el Worker. `npm run deploy` publica el Worker.
 
-## Seguridad operativa
-- No se incluyen API tokens ni secretos.
-- No se modifica Shopify ni se publica ningún tema de Shopify.
-- Los recursos externos y el despliegue remoto no se pueden certificar solo con pruebas locales.
+## Recursos y secretos
+
+El `wrangler.toml` conserva los IDs de recursos configurados en la versión de trabajo. Confirmá que esos IDs y nombres coincidan con tu cuenta Cloudflare antes de desplegar. Los secretos `ASTON_API_TOKEN` y `ASTON_JWT_SECRET` deben configurarse como secrets de Cloudflare, nunca dentro del repositorio. No pegues tokens en el chat.
+
+El código utiliza los bindings `ASTON_DB`, `ASTON_DB_BACKUP`, `ASTON_KV`, `ASTON_R2`, `AI` y Durable Objects definidos en `wrangler.toml`. Verificá que los recursos existan en la cuenta seleccionada.
+
+Esta entrega corrige el empaquetado; no demuestra por sí sola que el despliegue remoto haya finalizado ni que todas las integraciones estén habilitadas. No modifica ni publica temas de Shopify.

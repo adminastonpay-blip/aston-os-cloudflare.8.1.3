@@ -107,7 +107,7 @@ async function handle(request, env, ctx) {
   if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (method === "GET" && (path === "/" || path === "/health")) {
     const result = {
-      ok: true, service: "ASTON OS Omni-Matrix Apex", version: "8.1.1",
+      ok: true, service: "ASTON OS Omni-Matrix Apex", version: "8.1.5",
       runtime: "cloudflare-workers",
       checks: {
         worker: true,
