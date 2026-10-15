@@ -3,7 +3,7 @@ const SECTORS = new Set([
   "govtech", "health", "mobility", "media"
 ]);
 
-const VERSION = "8.2.0";
+const VERSION = "8.3.0";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -98,7 +98,8 @@ async function ensureSchema(db) {
     db.prepare("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, tenant TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, detail TEXT)"),
     db.prepare("CREATE TABLE IF NOT EXISTS usage (day TEXT NOT NULL, tenant TEXT NOT NULL, route TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, tenant, route))"),
     db.prepare("CREATE TABLE IF NOT EXISTS media (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, kind TEXT NOT NULL, prompt TEXT, model TEXT, r2_key TEXT, content_type TEXT, size_bytes INTEGER, created_at TEXT NOT NULL)"),
-    db.prepare("CREATE INDEX IF NOT EXISTS idx_media_tenant ON media (tenant, created_at)")
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_media_tenant ON media (tenant, created_at)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS plugins_state (plugin_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 1, config TEXT, updated_at TEXT NOT NULL)")
   ]);
 }
 
@@ -130,6 +131,66 @@ function detectCapabilities(env) {
   };
 }
 
+const PLUGIN_DEFINITIONS = [
+  {
+    id: "core",
+    name: "ASTON Core",
+    version: "8.3.0",
+    description: "Health, records, ingest, search, ledger, audit, stats, diagnostics",
+    requires: [],
+    routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage"]
+  },
+  {
+    id: "session",
+    name: "Session (Durable Object)",
+    version: "8.3.0",
+    description: "Tenant-scoped sessions via Durable Objects",
+    requires: ["ASTON_SESSION"],
+    routes: ["GET|POST|DELETE /v1/session"]
+  },
+  {
+    id: "ai-chat",
+    name: "Workers AI Chat",
+    version: "8.3.0",
+    description: "Text generation via Workers AI",
+    requires: ["AI"],
+    routes: ["POST /v1/ai/chat"]
+  },
+  {
+    id: "ai-image",
+    name: "Workers AI Image Generation",
+    version: "8.3.0",
+    description: "Generate images with Workers AI and store in R2",
+    requires: ["AI"],
+    routes: ["POST /v1/ai/image"]
+  },
+  {
+    id: "media",
+    name: "Media Library",
+    version: "8.3.0",
+    description: "List generated media assets",
+    requires: ["ASTON_DB"],
+    routes: ["GET /v1/media"]
+  }
+];
+
+function isPluginActive(plugin, env) {
+  if (!plugin.requires || plugin.requires.length === 0) return true;
+  return plugin.requires.every(binding => Boolean(env[binding]));
+}
+
+function listPlugins(env) {
+  return PLUGIN_DEFINITIONS.map(p => ({
+    id: p.id,
+    name: p.name,
+    version: p.version,
+    description: p.description,
+    requires: p.requires,
+    active: isPluginActive(p, env),
+    routes: p.routes
+  }));
+}
+
 async function handle(request, env, ctx) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -140,12 +201,18 @@ async function handle(request, env, ctx) {
 
   if (method === "GET" && (path === "/" || path === "/health")) {
     const caps = detectCapabilities(env);
+    const plugins = listPlugins(env);
     const result = {
       ok: true,
       service: "ASTON OS Omni-Matrix Apex",
       version: VERSION,
       runtime: "cloudflare-workers",
       capabilities: caps,
+      plugins: {
+        total: plugins.length,
+        active: plugins.filter(p => p.active).length,
+        list: plugins.map(p => ({ id: p.id, name: p.name, active: p.active }))
+      },
       checks: { worker: true, ...caps }
     };
     if (url.searchParams.get("deep") === "1" && env.ASTON_DB) {
@@ -159,6 +226,17 @@ async function handle(request, env, ctx) {
       }
     }
     return json(result, 200, cors);
+  }
+
+  if (method === "GET" && path === "/v1/plugins") {
+    const auth = await authorized(request, env, "read");
+    const plugins = listPlugins(env);
+    return json({
+      ok: true,
+      tenant: auth?.tenant || "anonymous",
+      version: VERSION,
+      plugins
+    }, 200, cors);
   }
 
   if (method === "POST" && path === "/v1/auth/token") {
@@ -179,7 +257,7 @@ async function handle(request, env, ctx) {
     const body = await readJson(request);
     const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
     if (!prompt) return json({ ok: false, error: "prompt_required" }, 400, cors);
-    if (!env.AI) return json({ ok: false, error: "workers_ai_binding_unavailable", hint: "Bind Workers AI in the Cloudflare dashboard or wrangler.toml" }, 503, cors);
+    if (!env.AI) return json({ ok: false, error: "plugin_inactive", plugin: "ai-chat", missing_bindings: ["AI"], hint: "Bind Workers AI in the Cloudflare dashboard or wrangler.toml" }, 503, cors);
     try {
       const model = body.model || env.AI_MODEL || "@cf/meta/llama-3.1-8b-instruct";
       const response = await env.AI.run(model, {
@@ -197,7 +275,13 @@ async function handle(request, env, ctx) {
     const auth = await authorized(request, env, "ai");
     if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
     if (!env.AI) {
-      return json({ ok: false, error: "workers_ai_binding_unavailable", hint: "Enable Workers AI in your Cloudflare account and bind it as 'AI'" }, 503, cors);
+      return json({
+        ok: false,
+        error: "plugin_inactive",
+        plugin: "ai-image",
+        missing_bindings: ["AI"],
+        hint: "Enable Workers AI in your Cloudflare account and bind it as 'AI'"
+      }, 503, cors);
     }
     const body = await readJson(request);
     const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
@@ -258,7 +342,8 @@ async function handle(request, env, ctx) {
       await audit(env, auth.tenant, auth.actor, "ai.image", `${model}:${id}`);
       const responsePayload = {
         ok: true, id, model, prompt: prompt.slice(0, 200), content_type: contentType,
-        size_bytes: sizeBytes, stored_in_r2: stored, r2_key: stored ? r2Key : null
+        size_bytes: sizeBytes, stored_in_r2: stored, r2_key: stored ? r2Key : null,
+        plugin: "ai-image"
       };
       if (body.return_base64 === true || body.return_base64 === "true") {
         responsePayload.image_base64 = arrayBufferToBase64(imageBytes);
@@ -277,7 +362,7 @@ async function handle(request, env, ctx) {
   if (method === "GET" && path === "/v1/media") {
     const auth = await authorized(request, env, "read");
     if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
-    if (!env.ASTON_DB) return json({ ok: false, error: "d1_binding_unavailable" }, 503, cors);
+    if (!env.ASTON_DB) return json({ ok: false, error: "plugin_inactive", plugin: "media", missing_bindings: ["ASTON_DB"] }, 503, cors);
     try {
       await ensureSchema(env.ASTON_DB);
       const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") || 20)));
@@ -377,7 +462,7 @@ async function handle(request, env, ctx) {
   if (path === "/v1/session" && ["GET", "POST", "DELETE"].includes(method)) {
     const auth = await authorized(request, env, method === "GET" ? "read" : "write");
     if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
-    if (!env.ASTON_SESSION) return json({ ok: false, error: "durable_object_binding_unavailable" }, 503, cors);
+    if (!env.ASTON_SESSION) return json({ ok: false, error: "plugin_inactive", plugin: "session", missing_bindings: ["ASTON_SESSION"] }, 503, cors);
     const id = url.searchParams.get("id") || "default";
     const stub = env.ASTON_SESSION.get(env.ASTON_SESSION.idFromName(`${auth.tenant}:${id}`));
     const headers = new Headers(request.headers);
