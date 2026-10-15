@@ -1,102 +1,61 @@
-# ASTON OS Omni-Core 8.2.0 — Cloudflare Worker
+# ASTON OS Omni-Core 8.3.0 — Cloudflare Worker (Plugin System)
 
-## Qué hay de nuevo en 8.2.0
+## Qué hay de nuevo en 8.3.0
 
-- **Hardening (Etapa 1)**: detección automática de capacidades, degradación elegante si falta un binding, CORS más flexible, respuestas siempre estructuradas.
-- **Generación de imágenes** (`POST /v1/ai/image`): usa Workers AI, guarda en R2 cuando está disponible y registra metadatos en D1.
-- Tabla `media` para historial de imágenes generadas.
-- Endpoint `GET /v1/media` para listar imágenes del tenant.
-- Health check ahora expone `capabilities` reales.
+- **Sistema de plugins**: cada capacidad se describe como un plugin con bindings requeridos.
+- Los plugins se **activan automáticamente** cuando existen los recursos en Cloudflare.
+- `GET /v1/plugins` lista todos los plugins y su estado (activo/inactivo).
+- Health check muestra resumen de plugins.
+- Si falta un binding (ej. AI), responde `plugin_inactive` (503) en lugar de un error confuso.
+- Tabla `plugins_state` preparada para configuración futura.
 
-## Estructura del repositorio
+## Plugins incluidos
 
-Los archivos deben estar en la **raíz** del repositorio:
+| ID | Nombre | Requiere | Estado |
+|----|--------|----------|--------|
+| `core` | ASTON Core | — | Siempre activo |
+| `session` | Session (DO) | `ASTON_SESSION` | Auto |
+| `ai-chat` | Workers AI Chat | `AI` | Auto |
+| `ai-image` | Image Generation | `AI` | Auto |
+| `media` | Media Library | `ASTON_DB` | Auto |
 
-```text
-wrangler.toml
-index.js
-package.json
-schema.sql
-run.mjs
-.gitignore
-README.md
-```
+## Integración automática
 
-## Despliegue en Cloudflare
+Cuando agregás un binding en Cloudflare (AI, R2, D1, Durable Objects), el plugin correspondiente pasa a `active: true` solo. No hace falta redeploy de lógica extra.
 
-1. Root directory: vacío (archivos en la raíz).
-2. Build command: `npm install`
-3. Deploy command: `npx wrangler deploy`
-4. Confirmá en el log que Wrangler carga `main = "index.js"`.
+## Endpoints
 
-## Secretos necesarios
+| Método | Ruta | Plugin |
+|--------|------|--------|
+| GET | `/` `/health` | core |
+| GET | `/v1/plugins` | core |
+| POST | `/v1/ai/chat` | ai-chat |
+| POST | `/v1/ai/image` | ai-image |
+| GET | `/v1/media` | media |
+| GET/POST | `/v1/records/:sector` | core |
+| POST | `/v1/ingest/:sector` | core |
+| POST | `/v1/search` | core |
+| POST | `/v1/ledger` | core |
+| GET | `/v1/audit` | core |
+| GET | `/v1/stats` | core |
+| POST | `/v1/diagnostics/storage` | core |
+| GET/POST/DELETE | `/v1/session` | session |
 
-Configurá en Cloudflare (nunca en el repo):
+## Despliegue
+
+1. Root directory vacío
+2. `npm install`
+3. `npx wrangler deploy`
+
+## Secretos
 
 - `ASTON_API_TOKEN`
 - `ASTON_JWT_SECRET` (opcional)
 
-## Variables opcionales
-
-| Variable | Descripción |
-|----------|-------------|
-| `AI_MODEL` | Modelo de chat (default `@cf/meta/llama-3.1-8b-instruct`) |
-| `AI_IMAGE_MODEL` | Modelo de imagen (default `@cf/black-forest-labs/flux-1-schnell`) |
-| `PUBLIC_CHAT` | `"true"` para permitir chat sin auth |
-| `ALLOWED_ORIGIN` | Origen CORS permitido |
-| `RATE_LIMIT_PER_MINUTE` | Límite por minuto (default 120) |
-
-## Endpoints principales
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/` o `/health` | Health + capabilities |
-| POST | `/v1/ai/chat` | Chat con Workers AI |
-| POST | `/v1/ai/image` | **Generar imagen** |
-| GET | `/v1/media` | Listar imágenes generadas |
-| GET/POST | `/v1/records/:sector` | Registros por sector |
-| POST | `/v1/ingest/:sector` | Ingestión masiva |
-| POST | `/v1/search` | Búsqueda keyword |
-| POST | `/v1/ledger` | Movimientos financieros |
-| GET | `/v1/audit` | Auditoría |
-| GET | `/v1/stats` | Estadísticas |
-| POST | `/v1/diagnostics/storage` | Diagnóstico de recursos |
-
-### Ejemplo de generación de imagen
-
-```bash
-curl -X POST https://TU-WORKER.workers.dev/v1/ai/image \
-  -H "Authorization: Bearer TU_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "A futuristic city at sunset, cinematic lighting",
-    "return_base64": false
-  }'
-```
-
-Respuesta típica:
-
-```json
-{
-  "ok": true,
-  "id": "uuid",
-  "model": "@cf/black-forest-labs/flux-1-schnell",
-  "stored_in_r2": true,
-  "r2_key": "default/images/uuid.png",
-  "size_bytes": 123456
-}
-```
-
-## Validación local
+## Validación
 
 ```bash
 node --check index.js
 npm test
 npm run check
 ```
-
-`npm run check` hace dry-run y no publica. `npm run deploy` publica el Worker.
-
-## Notas de seguridad
-
-Los secretos `ASTON_API_TOKEN` y `ASTON_JWT_SECRET` deben configurarse como secrets de Cloudflare. Nunca los pegues en el chat ni los subas al repositorio.
