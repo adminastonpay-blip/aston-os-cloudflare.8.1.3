@@ -13,20 +13,18 @@ const json = (data, status = 200, headers = {}) =>
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
-  const allowed = env.ALLOWED_ORIGIN;
+  const configured = [env.ALLOWED_ORIGIN, ...(String(env.ALLOWED_ORIGINS || "").split(",").map(v => v.trim()))].filter(Boolean);
+  // Fail closed: do not reflect arbitrary origins or allow every website to call this API.
+  // Configure exact custom storefront and preview origins in ALLOWED_ORIGIN / ALLOWED_ORIGINS.
+  const defaults = ["https://m1m0d3-ru.myshopify.com", "https://www.laneaston.com", "https://laneaston.com"];
+  const allowlist = new Set([...configured, ...defaults]);
   const headers = {
     "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
     "access-control-allow-headers": "Authorization,Content-Type,X-Tenant",
     "access-control-max-age": "86400",
     "vary": "Origin"
   };
-  if (allowed) {
-    if (origin === allowed) headers["access-control-allow-origin"] = origin;
-  } else if (origin) {
-    headers["access-control-allow-origin"] = origin;
-  } else {
-    headers["access-control-allow-origin"] = "*";
-  }
+  if (origin && allowlist.has(origin)) headers["access-control-allow-origin"] = origin;
   return headers;
 }
 
@@ -64,10 +62,14 @@ async function authorized(request, env, scope = "read") {
 }
 
 async function audit(env, tenant, actor, action, detail = "") {
-  if (!env.ASTON_DB) return;
+  if (!env.ASTON_DB) return false;
   try {
     await env.ASTON_DB.prepare("INSERT INTO audit_log (ts, tenant, actor, action, detail) VALUES (?, ?, ?, ?, ?)").bind(new Date().toISOString(), tenant, actor, action, String(detail).slice(0, 2000)).run();
-  } catch (e) { console.error("audit_log write failed", e?.message || e); }
+    return true;
+  } catch (e) {
+    console.error("audit_log write failed", e?.message || e);
+    return false;
+  }
 }
 
 async function ensureSchema(db) {
@@ -199,7 +201,7 @@ async function handle(request, env, ctx) {
     return json({ ok: false, error: "JWT issuance not enabled; use API token" }, 501, cors);
   }
 
-  if (method === "POST" && path === "/v1/ai/chat") {
+  if (method === "POST" && (path === "/v1/ai/chat" || path === "/v1/chat")) {
     const auth = await authorized(request, env, "ai");
     const publicChat = env.PUBLIC_CHAT === "true";
     if (!auth && !publicChat) return json({ ok: false, error: "unauthorized" }, 401, cors);
@@ -268,6 +270,28 @@ async function handle(request, env, ctx) {
       const result = await env.ASTON_DB.prepare("SELECT id, kind, prompt, model, r2_key, content_type, size_bytes, created_at FROM media WHERE tenant = ? ORDER BY created_at DESC LIMIT ?").bind(auth.tenant, limit).all();
       return json({ ok: true, tenant: auth.tenant, media: result.results || [] }, 200, cors);
     } catch (e) { return json({ ok: false, error: "media_list_failed" }, 500, cors); }
+  }
+
+  if (method === "POST" && path === "/v1/events") {
+    const auth = await authorized(request, env, "write");
+    if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
+    if (!env.ASTON_DB) return json({ ok: false, error: "d1_binding_unavailable" }, 503, cors);
+    const body = await readJson(request);
+    const eventName = String(body?.event || body?.name || "").trim().slice(0, 120);
+    if (!eventName) return json({ ok: false, error: "event_name_required" }, 400, cors);
+    try {
+      await ensureSchema(env.ASTON_DB);
+      const detail = JSON.stringify({
+        event_id: String(body?.event_id || "").slice(0, 120),
+        page: String(body?.page || "").slice(0, 500),
+        properties: body?.properties && typeof body.properties === "object" ? body.properties : {}
+      }).slice(0, 2000);
+      const persisted = await audit(env, auth.tenant, auth.actor, "storefront.event:" + eventName, detail);
+      if (!persisted) return json({ ok: false, error: "event_write_failed" }, 500, cors);
+      return json({ ok: true, accepted: true, event: eventName }, 202, cors);
+    } catch {
+      return json({ ok: false, error: "event_write_failed" }, 500, cors);
+    }
   }
 
   const recordsMatch = path.match(/^\/v1\/records\/([a-z0-9_-]+)$/i);
