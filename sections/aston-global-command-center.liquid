@@ -1,0 +1,292 @@
+{% liquid
+  assign aston_section_id = 'aston-global-command-' | append: section.id
+%}
+<section id="{{ aston_section_id }}" class="aston-global" aria-labelledby="{{ aston_section_id }}-title">
+  <div class="aston-global__shell">
+    <header class="aston-global__hero">
+      <div class="aston-global__hero-copy">
+        {% if section.settings.eyebrow != blank %}
+          <p class="aston-global__eyebrow"><span class="aston-global__eyebrow-mark"></span>{{ section.settings.eyebrow | escape }}</p>
+        {% endif %}
+        <h2 id="{{ aston_section_id }}-title">{{ section.settings.heading | escape }}</h2>
+        {% if section.settings.intro != blank %}
+          <p class="aston-global__intro">{{ section.settings.intro | escape }}</p>
+        {% endif %}
+        <div class="aston-global__hero-actions">
+          {% if section.settings.primary_label != blank and section.settings.primary_url != blank %}
+            <a class="aston-global__button aston-global__button--primary" href="{{ section.settings.primary_url }}">{{ section.settings.primary_label | escape }} <span aria-hidden="true">↗</span></a>
+          {% endif %}
+          {% if section.settings.secondary_label != blank and section.settings.secondary_url != blank %}
+            <a class="aston-global__button aston-global__button--secondary" href="{{ section.settings.secondary_url }}">{{ section.settings.secondary_label | escape }}</a>
+          {% endif %}
+        </div>
+      </div>
+      <aside class="aston-global__status" aria-label="Estado de integración">
+        <span class="aston-global__status-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 7v5.2c0 4.1-2.8 6.8-7 8.3-4.2-1.5-7-4.2-7-8.3V7l7-3.5Z" stroke="currentColor" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="aston-global__status-copy">
+          <strong>{{ section.settings.status_title | escape }}</strong>
+          <small>{{ section.settings.status_note | escape }}</small>
+        </span>
+      </aside>
+    </header>
+
+    <div class="aston-global__toolbar">
+      <div class="aston-global__toolbar-copy">
+        <span class="aston-global__section-kicker">{{ section.settings.catalog_label | escape }}</span>
+        <span class="aston-global__count"><span data-aston-count>{{ section.blocks.size }}</span> {{ section.settings.capabilities_label | escape }}</span>
+      </div>
+      <label class="aston-global__search">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="aston-global__sr-only">{{ section.settings.search_label | escape }}</span>
+        <input type="search" data-aston-search placeholder="{{ section.settings.search_placeholder | escape }}" autocomplete="off">
+      </label>
+    </div>
+
+    <nav class="aston-global__filters" aria-label="{{ section.settings.filters_label | escape }}" data-aston-filters>
+      <button type="button" class="aston-global__filter is-active" data-aston-filter="all" aria-pressed="true">{{ section.settings.all_label | escape }}</button>
+      {% assign categories = section.blocks | map: 'settings' | map: 'category' | uniq %}
+      {% for category in categories %}
+        {% if category != blank %}
+          <button type="button" class="aston-global__filter" data-aston-filter="{{ category | handleize }}" aria-pressed="false">{{ category | escape }}</button>
+        {% endif %}
+      {% endfor %}
+    </nav>
+
+    <div class="aston-global__grid" data-aston-grid>
+      {% for block in section.blocks %}
+        <article class="aston-global__card" data-aston-card data-category="{{ block.settings.category | handleize }}" data-search="{{ block.settings.title | escape }} {{ block.settings.description | escape }} {{ block.settings.category | escape }}" {{ block.shopify_attributes }}>
+          <div class="aston-global__card-top">
+            <span class="aston-global__module-icon" aria-hidden="true">
+              {% case block.settings.icon %}
+                {% when 'intelligence' %}<svg viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.6"/></svg>
+                {% when 'agents' %}<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M5 20v-1.7a5.3 5.3 0 0 1 5.3-5.3h3.4a5.3 5.3 0 0 1 5.3 5.3V20M4 5h2m12 0h2M4 9h2m12 0h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                {% when 'research' %}<svg viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m15.5 15.5 4.2 4.2M8 10.5h5m-2.5-2.5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                {% when 'engineering' %}<svg viewBox="0 0 24 24" fill="none"><path d="m8 8-4 4 4 4m8-8 4 4-4 4m-2-11-4 14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% when 'finance' %}<svg viewBox="0 0 24 24" fill="none"><path d="M4 19.5h16M6.5 16V11m5.5 5V5m5.5 11V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="m5 8 5-3 5 2 4-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% when 'operations' %}<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="4" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="14" width="6" height="6" rx="1.2" stroke="currentColor" stroke-width="1.6"/><path d="M17 14v6m-3-3h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                {% when 'infrastructure' %}<svg viewBox="0 0 24 24" fill="none"><path d="M4 20V9l8-5 8 5v11M8 20v-6h8v6M9 10h.01M15 10h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% when 'security' %}<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5 19 7v5.2c0 4.1-2.8 6.8-7 8.3-4.2-1.5-7-4.2-7-8.3V7l7-3.5Z" stroke="currentColor" stroke-width="1.6"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% when 'legal' %}<svg viewBox="0 0 24 24" fill="none"><path d="M12 4v16M5 7h14M7 7l-4 7h8L7 7Zm10 0-4 7h8l-4-7ZM7 20h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% when 'growth' %}<svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M7 15l4-4 3 2 5-6m-4 0h4v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% when 'human' %}<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="7.5" r="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M5 20a7 7 0 0 1 14 0M4 4l1.5 1.5M20 4l-1.5 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                {% else %}<svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5h16v13H4zM8 9h8M8 12h5M8 15h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              {% endcase %}
+            </span>
+            {% if block.settings.badge != blank %}<span class="aston-global__badge">{{ block.settings.badge | escape }}</span>{% endif %}
+          </div>
+          <p class="aston-global__card-category">{{ block.settings.category | escape }}</p>
+          <h3>{{ block.settings.title | escape }}</h3>
+          <p class="aston-global__card-description">{{ block.settings.description | escape }}</p>
+          <div class="aston-global__card-bottom">
+            {% if block.settings.status != blank %}
+              <span class="aston-global__module-status"><span aria-hidden="true"></span>{{ block.settings.status | escape }}</span>
+            {% endif %}
+            {% if block.settings.url != blank %}
+              <a class="aston-global__card-link" href="{{ block.settings.url }}">{{ block.settings.link_label | escape }} <span aria-hidden="true">→</span></a>
+            {% else %}
+              <span class="aston-global__card-link aston-global__card-link--disabled">{{ section.settings.link_placeholder | escape }}</span>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    <p class="aston-global__empty" data-aston-empty hidden>{{ section.settings.empty_message | escape }}</p>
+
+    {% if section.settings.footer_note != blank %}
+      <footer class="aston-global__footer"><span class="aston-global__footer-mark" aria-hidden="true">A</span><p>{{ section.settings.footer_note | escape }}</p></footer>
+    {% endif %}
+  </div>
+</section>
+
+<style>
+  #{{ aston_section_id }} {
+    --aston-ink: {{ section.settings.text_color }};
+    --aston-muted: {{ section.settings.muted_color }};
+    --aston-accent: {{ section.settings.accent_color }};
+    --aston-surface: {{ section.settings.card_color }};
+    --aston-border: {{ section.settings.border_color }};
+    --aston-bg: {{ section.settings.background_color }};
+    color: var(--aston-ink);
+    background: var(--aston-bg);
+    padding: clamp(36px, 6vw, 84px) 20px;
+    font-family: var(--font-body-family, inherit);
+  }
+  #{{ aston_section_id }} * { box-sizing: border-box; }
+  #{{ aston_section_id }} .aston-global__shell { width: min(1240px, 100%); margin: 0 auto; }
+  #{{ aston_section_id }} .aston-global__hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding-bottom: 38px; }
+  #{{ aston_section_id }} .aston-global__hero-copy { max-width: 790px; }
+  #{{ aston_section_id }} .aston-global__eyebrow { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; color: var(--aston-accent); font-size: 12px; font-weight: 750; letter-spacing: .12em; line-height: 1.4; text-transform: uppercase; }
+  #{{ aston_section_id }} .aston-global__eyebrow-mark { width: 8px; height: 8px; border-radius: 2px; background: var(--aston-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--aston-accent) 13%, transparent); }
+  #{{ aston_section_id }} h2 { max-width: 780px; margin: 0; font-size: clamp(34px, 5vw, 60px); font-weight: 650; letter-spacing: -.045em; line-height: 1.04; }
+  #{{ aston_section_id }} .aston-global__intro { max-width: 690px; margin: 20px 0 0; color: var(--aston-muted); font-size: clamp(15px, 1.5vw, 18px); line-height: 1.7; }
+  #{{ aston_section_id }} .aston-global__hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+  #{{ aston_section_id }} .aston-global__button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 46px; padding: 0 18px; border: 1px solid var(--aston-border); border-radius: 8px; font-size: 14px; font-weight: 650; text-decoration: none; transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+  #{{ aston_section_id }} .aston-global__button:hover { transform: translateY(-1px); }
+  #{{ aston_section_id }} .aston-global__button--primary { border-color: var(--aston-accent); background: var(--aston-accent); color: #fff; }
+  #{{ aston_section_id }} .aston-global__button--secondary { background: transparent; color: var(--aston-ink); }
+  #{{ aston_section_id }} .aston-global__status { display: flex; align-items: center; gap: 12px; min-width: 230px; max-width: 290px; padding: 17px; border: 1px solid var(--aston-border); border-radius: 12px; background: var(--aston-surface); }
+  #{{ aston_section_id }} .aston-global__status-icon { display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--aston-accent) 10%, transparent); color: var(--aston-accent); }
+  #{{ aston_section_id }} .aston-global__status-icon svg { width: 24px; height: 24px; }
+  #{{ aston_section_id }} .aston-global__status-copy { display: grid; gap: 4px; }
+  #{{ aston_section_id }} .aston-global__status-copy strong { font-size: 13px; font-weight: 700; }
+  #{{ aston_section_id }} .aston-global__status-copy small { color: var(--aston-muted); font-size: 12px; line-height: 1.5; }
+  #{{ aston_section_id }} .aston-global__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0 16px; border-top: 1px solid var(--aston-border); }
+  #{{ aston_section_id }} .aston-global__toolbar-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  #{{ aston_section_id }} .aston-global__section-kicker { font-size: 15px; font-weight: 750; }
+  #{{ aston_section_id }} .aston-global__count { color: var(--aston-muted); font-size: 12px; }
+  #{{ aston_section_id }} .aston-global__search { display: flex; align-items: center; gap: 9px; width: min(310px, 100%); min-height: 42px; padding: 0 12px; border: 1px solid var(--aston-border); border-radius: 8px; background: var(--aston-surface); }
+  #{{ aston_section_id }} .aston-global__search svg { width: 18px; height: 18px; flex: 0 0 18px; color: var(--aston-muted); }
+  #{{ aston_section_id }} .aston-global__search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--aston-ink); font: inherit; font-size: 13px; box-shadow: none; }
+  #{{ aston_section_id }} .aston-global__search input:focus-visible { outline: 2px solid var(--aston-accent); outline-offset: 3px; border-radius: 2px; }
+  #{{ aston_section_id }} .aston-global__filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 24px; }
+  #{{ aston_section_id }} .aston-global__filter { min-height: 34px; padding: 7px 13px; border: 1px solid var(--aston-border); border-radius: 7px; background: transparent; color: var(--aston-muted); cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; }
+  #{{ aston_section_id }} .aston-global__filter:hover, #{{ aston_section_id }} .aston-global__filter.is-active { border-color: var(--aston-accent); background: color-mix(in srgb, var(--aston-accent) 9%, var(--aston-bg)); color: var(--aston-ink); }
+  #{{ aston_section_id }} .aston-global__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  #{{ aston_section_id }} .aston-global__card { display: flex; min-width: 0; flex-direction: column; min-height: 255px; padding: 22px; border: 1px solid var(--aston-border); border-radius: 12px; background: var(--aston-surface); transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+  #{{ aston_section_id }} .aston-global__card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--aston-accent) 55%, var(--aston-border)); box-shadow: 0 10px 30px rgba(16, 24, 40, .055); }
+  #{{ aston_section_id }} .aston-global__card[hidden] { display: none !important; }
+  #{{ aston_section_id }} .aston-global__card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  #{{ aston_section_id }} .aston-global__module-icon { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid color-mix(in srgb, var(--aston-accent) 20%, var(--aston-border)); border-radius: 10px; background: color-mix(in srgb, var(--aston-accent) 8%, var(--aston-surface)); color: var(--aston-accent); }
+  #{{ aston_section_id }} .aston-global__module-icon svg { width: 23px; height: 23px; }
+  #{{ aston_section_id }} .aston-global__badge { padding: 5px 8px; border: 1px solid var(--aston-border); border-radius: 5px; color: var(--aston-muted); font-size: 10px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+  #{{ aston_section_id }} .aston-global__card-category { margin: 19px 0 7px; color: var(--aston-accent); font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+  #{{ aston_section_id }} .aston-global__card h3 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -.02em; line-height: 1.35; }
+  #{{ aston_section_id }} .aston-global__card-description { margin: 10px 0 20px; color: var(--aston-muted); font-size: 13px; line-height: 1.65; }
+  #{{ aston_section_id }} .aston-global__card-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--aston-border); }
+  #{{ aston_section_id }} .aston-global__module-status { display: inline-flex; align-items: center; gap: 6px; color: var(--aston-muted); font-size: 10px; line-height: 1.4; }
+  #{{ aston_section_id }} .aston-global__module-status span { width: 6px; height: 6px; border-radius: 50%; background: #98a2b3; }
+  #{{ aston_section_id }} .aston-global__card-link { display: inline-flex; align-items: center; gap: 8px; color: var(--aston-accent); font-size: 12px; font-weight: 750; text-decoration: none; white-space: nowrap; }
+  #{{ aston_section_id }} a.aston-global__card-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  #{{ aston_section_id }} .aston-global__card-link--disabled { color: var(--aston-muted); cursor: default; }
+  #{{ aston_section_id }} .aston-global__empty { margin: 0; padding: 32px 12px; border: 1px dashed var(--aston-border); border-radius: 10px; color: var(--aston-muted); text-align: center; }
+  #{{ aston_section_id }} .aston-global__footer { display: flex; align-items: center; gap: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--aston-border); }
+  #{{ aston_section_id }} .aston-global__footer-mark { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; background: var(--aston-ink); color: var(--aston-bg); font-size: 14px; font-weight: 800; }
+  #{{ aston_section_id }} .aston-global__footer p { margin: 0; color: var(--aston-muted); font-size: 12px; line-height: 1.6; }
+  #{{ aston_section_id }} .aston-global__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  @media (max-width: 900px) {
+    #{{ aston_section_id }} .aston-global__hero { align-items: flex-start; flex-direction: column; }
+    #{{ aston_section_id }} .aston-global__status { max-width: 100%; }
+    #{{ aston_section_id }} .aston-global__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px) {
+    #{{ aston_section_id }} { padding: 36px 16px; }
+    #{{ aston_section_id }} .aston-global__hero { gap: 22px; padding-bottom: 28px; }
+    #{{ aston_section_id }} .aston-global__toolbar { align-items: stretch; flex-direction: column; gap: 13px; }
+    #{{ aston_section_id }} .aston-global__search { width: 100%; }
+    #{{ aston_section_id }} .aston-global__grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    #{{ aston_section_id }} .aston-global__card { min-height: 0; padding: 19px; }
+    #{{ aston_section_id }} .aston-global__card h3 { font-size: 18px; }
+    #{{ aston_section_id }} .aston-global__filters { gap: 7px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #{{ aston_section_id }} *, #{{ aston_section_id }} *::before, #{{ aston_section_id }} *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
+</style>
+
+<script>
+  (() => {
+    const root = document.getElementById({{ aston_section_id | json }});
+    if (!root || root.dataset.astonInitialized === 'true') return;
+    root.dataset.astonInitialized = 'true';
+    const search = root.querySelector('[data-aston-search]');
+    const cards = Array.from(root.querySelectorAll('[data-aston-card]'));
+    const filters = Array.from(root.querySelectorAll('[data-aston-filter]'));
+    const count = root.querySelector('[data-aston-count]');
+    const empty = root.querySelector('[data-aston-empty]');
+    let activeCategory = 'all';
+    const update = () => {
+      const query = (search?.value || '').trim().toLocaleLowerCase();
+      let visible = 0;
+      cards.forEach(card => {
+        const matchesCategory = activeCategory === 'all' || card.dataset.category === activeCategory;
+        const matchesQuery = !query || (card.dataset.search || '').toLocaleLowerCase().includes(query);
+        const show = matchesCategory && matchesQuery;
+        card.hidden = !show;
+        if (show) visible += 1;
+      });
+      if (count) count.textContent = String(visible);
+      if (empty) empty.hidden = visible !== 0;
+    };
+    filters.forEach(button => button.addEventListener('click', () => {
+      activeCategory = button.dataset.astonFilter || 'all';
+      filters.forEach(filter => {
+        const selected = filter === button;
+        filter.classList.toggle('is-active', selected);
+        filter.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      });
+      update();
+    }));
+    search?.addEventListener('input', update);
+    update();
+  })();
+</script>
+
+{% schema %}
+{
+  "name": "Global Command",
+  "tag": "section",
+  "class": "section-aston-global-command",
+  "settings": [
+    {"type":"text","id":"eyebrow","label":"Texto superior","default":"ASTON OS · GLOBAL INTELLIGENCE"},
+    {"type":"text","id":"heading","label":"Título","default":"Un centro de comando para resolver problemas complejos."},
+    {"type":"textarea","id":"intro","label":"Descripción","default":"Conectá inteligencia, investigación, ingeniería y operaciones en un único espacio de trabajo. Elegí una capacidad, definí el objetivo y avanzá con control y trazabilidad."},
+    {"type":"text","id":"primary_label","label":"Botón principal","default":"Explorar capacidades"},
+    {"type":"url","id":"primary_url","label":"Enlace principal"},
+    {"type":"text","id":"secondary_label","label":"Botón secundario","default":"Ver arquitectura"},
+    {"type":"url","id":"secondary_url","label":"Enlace secundario"},
+    {"type":"text","id":"status_title","label":"Estado del panel","default":"Panel configurable"},
+    {"type":"text","id":"status_note","label":"Nota de integración","default":"Conexión con Worker a configurar"},
+    {"type":"text","id":"catalog_label","label":"Título del catálogo","default":"Capacidades de ASTON"},
+    {"type":"text","id":"capabilities_label","label":"Etiqueta de cantidad","default":"módulos"},
+    {"type":"text","id":"search_label","label":"Etiqueta de búsqueda","default":"Buscar capacidades"},
+    {"type":"text","id":"search_placeholder","label":"Placeholder de búsqueda","default":"Buscar una capacidad..."},
+    {"type":"text","id":"filters_label","label":"Etiqueta de filtros","default":"Filtrar por categoría"},
+    {"type":"text","id":"all_label","label":"Filtro general","default":"Todas"},
+    {"type":"text","id":"link_placeholder","label":"Texto sin enlace","default":"Enlace pendiente"},
+    {"type":"text","id":"empty_message","label":"Mensaje sin resultados","default":"No encontramos capacidades con esos criterios. Probá con otra búsqueda."},
+    {"type":"text","id":"footer_note","label":"Nota al pie","default":"Los módulos y estados se configuran desde el editor del tema. La conexión operativa requiere integrar los servicios correspondientes."},
+    {"type":"color","id":"background_color","label":"Fondo","default":"#F7F9FC"},
+    {"type":"color","id":"card_color","label":"Fondo de tarjetas","default":"#FFFFFF"},
+    {"type":"color","id":"text_color","label":"Texto principal","default":"#172B4D"},
+    {"type":"color","id":"muted_color","label":"Texto secundario","default":"#5E6C84"},
+    {"type":"color","id":"accent_color","label":"Color de acento","default":"#2457C5"},
+    {"type":"color","id":"border_color","label":"Bordes","default":"#DFE5EF"}
+  ],
+  "blocks": [
+    {
+      "type":"module",
+      "name":"Módulo",
+      "settings":[
+        {"type":"text","id":"title","label":"Nombre","default":"Global Intelligence"},
+        {"type":"select","id":"category","label":"Categoría","default":"Inteligencia","options":[{"value":"Inteligencia","label":"Inteligencia"},{"value":"Agentes","label":"Agentes"},{"value":"Investigación","label":"Investigación"},{"value":"Ingeniería","label":"Ingeniería"},{"value":"Finanzas","label":"Finanzas"},{"value":"Operaciones","label":"Operaciones"},{"value":"Infraestructura","label":"Infraestructura"},{"value":"Seguridad","label":"Seguridad"},{"value":"Legal y cumplimiento","label":"Legal y cumplimiento"},{"value":"Negocios","label":"Negocios"},{"value":"Servicios humanos","label":"Servicios humanos"}]},
+        {"type":"select","id":"icon","label":"Icono","default":"intelligence","options":[{"value":"intelligence","label":"Inteligencia"},{"value":"agents","label":"Agentes"},{"value":"research","label":"Investigación"},{"value":"engineering","label":"Ingeniería"},{"value":"finance","label":"Finanzas"},{"value":"operations","label":"Operaciones"},{"value":"infrastructure","label":"Infraestructura"},{"value":"security","label":"Seguridad"},{"value":"legal","label":"Legal"},{"value":"growth","label":"Crecimiento"},{"value":"human","label":"Servicios humanos"},{"value":"general","label":"General"}]},
+        {"type":"textarea","id":"description","label":"Descripción","default":"Analizá problemas, encontrá dependencias y convertí objetivos en un plan verificable."},
+        {"type":"text","id":"badge","label":"Etiqueta opcional"},
+        {"type":"text","id":"status","label":"Texto de estado","default":"Configurable"},
+        {"type":"text","id":"link_label","label":"Texto del enlace","default":"Abrir módulo"},
+        {"type":"url","id":"url","label":"Enlace del módulo"}
+      ]
+    }
+  ],
+  "max_blocks": 24,
+  "presets": [
+    {
+      "name":"ASTON Global Command Center",
+      "blocks":[
+        {"type":"module","settings":{"title":"Global Intelligence","category":"Inteligencia","icon":"intelligence","description":"Comprendé problemas, detectá causas y transformá objetivos complejos en planes accionables.","status":"Base conceptual"}},
+        {"type":"module","settings":{"title":"Autonomous Agents","category":"Agentes","icon":"agents","description":"Organizá agentes y tareas por función, con límites de permisos y aprobación humana.","status":"Integración pendiente"}},
+        {"type":"module","settings":{"title":"Research & Knowledge","category":"Investigación","icon":"research","description":"Reuní fuentes, compará evidencia y estructurá conocimiento para tomar decisiones.","status":"Integración pendiente"}},
+        {"type":"module","settings":{"title":"Engineering & Builder","category":"Ingeniería","icon":"engineering","description":"Diseñá y revisá software, APIs, configuraciones e implementaciones técnicas.","status":"Integración pendiente"}},
+        {"type":"module","settings":{"title":"Finance & Economics","category":"Finanzas","icon":"finance","description":"Analizá costos, flujos, riesgos financieros e indicadores económicos con controles.","status":"Requiere revisión"}},
+        {"type":"module","settings":{"title":"Operations & Logistics","category":"Operaciones","icon":"operations","description":"Modelá procesos, inventarios, cadena de suministro y eficiencia operativa.","status":"Integración pendiente"}},
+        {"type":"module","settings":{"title":"Science & Infrastructure","category":"Infraestructura","icon":"infrastructure","description":"Organizá análisis de agua, energía, agricultura, clima e infraestructura crítica.","status":"Requiere revisión"}},
+        {"type":"module","settings":{"title":"Security & Trust","category":"Seguridad","icon":"security","description":"Centralizá controles, riesgos, revisión de incidentes y evidencia de auditoría.","status":"Requiere revisión"}},
+        {"type":"module","settings":{"title":"Legal & Compliance","category":"Legal y cumplimiento","icon":"legal","description":"Ordená obligaciones, políticas y verificaciones regulatorias con supervisión especializada.","status":"Requiere revisión"}},
+        {"type":"module","settings":{"title":"Business Growth","category":"Negocios","icon":"growth","description":"Evaluá oportunidades, experiencia del cliente, ingresos y planes de crecimiento.","status":"Integración pendiente"}},
+        {"type":"module","settings":{"title":"Human Services","category":"Servicios humanos","icon":"human","description":"Diseñá flujos de atención y servicios con protección de datos y supervisión adecuada.","status":"Requiere revisión"}},
+        {"type":"module","settings":{"title":"Simulation & Decision Lab","category":"Investigación","icon":"general","description":"Compará escenarios, supuestos, impacto y alternativas antes de decidir.","status":"Integración pendiente"}}
+      ]
+    }
+  ]
+}
+{% endschema %}
