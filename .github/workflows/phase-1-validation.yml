@@ -1,0 +1,28 @@
+name: Phase 1 Universal Core Validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/phase-1-universal-core]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Run regression tests
+        run: npm test
+      - name: Validate Cloudflare Worker bundle
+        run: npm run check
