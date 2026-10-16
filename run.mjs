@@ -37,3 +37,27 @@ assert.equal(capsBody.mode, "advisory");
 assert.equal(capsBody.capabilities.private_data_access, false);
 
 console.log("Public agent safety tests passed");
+
+
+const publicEnv = {
+  PUBLIC_AGENT: "true",
+  PUBLIC_AGENT_RATE_LIMIT_PER_MINUTE: "8",
+  AI: { run: async (_model, _payload) => ({ response: "Primero, identificá el síntoma; después verificá la causa con evidencia." }) },
+  ASTON_RATE_LIMITER: {
+    idFromName: (_name) => "public-test",
+    get: (_id) => ({ fetch: async () => new Response(JSON.stringify({ ok: true, remaining: 7 }), { status: 200 }) })
+  }
+};
+const publicResponse = await worker.fetch(new Request("https://aston.test/v1/agent/public", {
+  method: "POST",
+  headers: { "content-type": "application/json", "CF-Connecting-IP": "192.0.2.10" },
+  body: JSON.stringify({ prompt: "Ayudame a diagnosticar una falla", history: [] })
+}), publicEnv, {});
+const publicBody = await publicResponse.json();
+assert.equal(publicResponse.status, 200);
+assert.equal(publicBody.mode, "advisory");
+assert.equal(publicBody.actions_executed, false);
+assert.deepEqual(publicBody.tools_used, []);
+assert.match(publicBody.answer, /identificá el síntoma/);
+
+console.log("Public agent mock integration test passed");
