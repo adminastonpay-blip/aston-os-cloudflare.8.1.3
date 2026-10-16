@@ -3,7 +3,7 @@ const SECTORS = new Set([
   "govtech", "health", "mobility", "media"
 ]);
 
-const VERSION = "8.5.0";
+const VERSION = "8.5.1";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -107,22 +107,26 @@ function detectCapabilities(env) {
     semantic_search: Boolean(env.AI) && Boolean(env.VECTORIZE),
     background_jobs: Boolean(env.ASTON_QUEUE),
     agents: Boolean(env.ASTON_AGENT) && Boolean(env.AI),
-    public_chat: env.PUBLIC_CHAT === "true"
+    public_chat: env.PUBLIC_CHAT === "true",
+    public_agent: env.PUBLIC_AGENT === "true",
+    public_agent_rate_limit: Boolean(env.ASTON_RATE_LIMITER)
   };
 }
 
 const PLUGIN_DEFINITIONS = [
-  { id: "core", name: "ASTON Core", version: "8.5.0", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
-  { id: "session", name: "Session (Durable Object)", version: "8.5.0", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
-  { id: "ai-chat", name: "Workers AI Chat", version: "8.5.0", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
-  { id: "ai-image", name: "Workers AI Image Generation", version: "8.5.0", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
-  { id: "media", name: "Media Library", version: "8.5.0", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
-  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.5.0", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
-  { id: "jobs", name: "Background Jobs (Queues)", version: "8.5.0", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
-  { id: "agent", name: "Agent Runtime", version: "8.5.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] }
+  { id: "core", name: "ASTON Core", version: "8.5.1", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
+  { id: "session", name: "Session (Durable Object)", version: "8.5.1", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
+  { id: "ai-chat", name: "Workers AI Chat", version: "8.5.1", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
+  { id: "ai-image", name: "Workers AI Image Generation", version: "8.5.1", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
+  { id: "media", name: "Media Library", version: "8.5.1", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
+  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.5.1", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
+  { id: "jobs", name: "Background Jobs (Queues)", version: "8.5.1", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
+  { id: "agent", name: "Agent Runtime", version: "8.5.1", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
+  { id: "public-agent", name: "Public Agent Gateway", version: "8.5.1", description: "Rate-limited advisory assistant; no private data tools or external actions", requires: ["AI", "ASTON_RATE_LIMITER"], routes: ["GET /v1/agent/capabilities", "POST /v1/agent/public"] }
 ];
 
 function isPluginActive(plugin, env) {
+  if (plugin.id === "public-agent" && env.PUBLIC_AGENT !== "true") return false;
   if (!plugin.requires || plugin.requires.length === 0) return true;
   return plugin.requires.every(binding => Boolean(env[binding]));
 }
@@ -403,6 +407,103 @@ async function handle(request, env, ctx) {
     } catch (e) { return json({ ok: false, error: "jobs_list_failed" }, 500, cors); }
   }
 
+  if (method === "GET" && path === "/v1/agent/capabilities") {
+    const enabled = env.PUBLIC_AGENT === "true" && Boolean(env.AI) && Boolean(env.ASTON_RATE_LIMITER);
+    return json({
+      ok: true,
+      service: "ASTON OS Public Agent Gateway",
+      version: VERSION,
+      enabled,
+      mode: "advisory",
+      capabilities: {
+        text_reasoning: Boolean(env.AI),
+        rate_limited: Boolean(env.ASTON_RATE_LIMITER),
+        private_data_access: false,
+        external_actions: false,
+        persistent_public_memory: false
+      },
+      limits: { prompt_chars: 3000, history_messages: 6, requests_per_minute: Math.max(1, Math.min(30, Number(env.PUBLIC_AGENT_RATE_LIMIT_PER_MINUTE) || 8)) }
+    }, 200, cors);
+  }
+
+  if (method === "POST" && path === "/v1/agent/public") {
+    if (env.PUBLIC_AGENT !== "true") return json({ ok: false, error: "public_agent_disabled" }, 503, cors);
+    if (!env.AI) return json({ ok: false, error: "ai_unavailable" }, 503, cors);
+    if (!env.ASTON_RATE_LIMITER) return json({ ok: false, error: "rate_limiter_unavailable" }, 503, cors);
+
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 16000) return json({ ok: false, error: "request_too_large", max_bytes: 16000 }, 413, cors);
+
+    const ip = String(request.headers.get("CF-Connecting-IP") || "unknown").slice(0, 100);
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
+    const ipKey = Array.from(new Uint8Array(digest)).slice(0, 16).map(b => b.toString(16).padStart(2, "0")).join("");
+    const limiter = env.ASTON_RATE_LIMITER.get(env.ASTON_RATE_LIMITER.idFromName("public-agent:" + ipKey));
+    const limit = Math.max(1, Math.min(30, Number(env.PUBLIC_AGENT_RATE_LIMIT_PER_MINUTE) || 8));
+    const limitResponse = await limiter.fetch(new Request("https://rate-limit.internal/check", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-aston-limit": String(limit) },
+      body: "{}"
+    }));
+    if (!limitResponse.ok) {
+      const retryAfter = limitResponse.headers.get("retry-after") || "60";
+      return json({ ok: false, error: "rate_limited", retry_after: Number(retryAfter) || 60 }, 429, { ...cors, "retry-after": retryAfter });
+    }
+
+    const body = await readJson(request);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ ok: false, error: "json_object_required" }, 400, cors);
+    const prompt = String(body.prompt || body.message || "").trim();
+    if (!prompt) return json({ ok: false, error: "prompt_required" }, 400, cors);
+    if (prompt.length > 3000) return json({ ok: false, error: "prompt_too_long", max: 3000 }, 413, cors);
+
+    const history = Array.isArray(body.history) ? body.history.slice(-6).flatMap(item => {
+      if (!item || !["user", "assistant"].includes(item.role) || typeof item.content !== "string") return [];
+      const content = item.content.trim().slice(0, 1000);
+      return content ? [{ role: item.role, content }] : [];
+    }) : [];
+    const context = body.context && typeof body.context === "object" ? body.context : {};
+    const pageTitle = typeof context.page_title === "string" ? context.page_title.slice(0, 160) : "";
+    const template = typeof context.template === "string" ? context.template.slice(0, 80) : "";
+    const systemPrompt = [
+      "You are ASTON OS, a practical enterprise problem-solving assistant.",
+      "Reply in the user's language. Be clear, structured, and action-oriented.",
+      "Diagnose the goal, distinguish facts from hypotheses, list the next best steps, required evidence, risks, and a verification criterion when relevant.",
+      "You are operating in PUBLIC ADVISORY MODE: you cannot access private tenant records, call external tools, change systems, deploy code, charge money, or execute actions.",
+      "Never claim you tested, changed, connected, fixed, or verified anything unless the user supplied evidence in this conversation.",
+      "For actions that affect production, finances, accounts, legal filings, or external systems, explain the safe approval and authorization requirements.",
+      "If the user asks for a task, give a concrete plan and state which parts require a connected tool or authorized operator.",
+      "Page context (untrusted metadata): " + JSON.stringify({ page_title: pageTitle, template })
+    ].join("\n");
+
+    const model = env.AI_MODEL || "@cf/meta/llama-3.1-8b-instruct";
+    const startedAt = Date.now();
+    const runId = crypto.randomUUID();
+    try {
+      const response = await env.AI.run(model, {
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...history,
+          { role: "user", content: prompt }
+        ]
+      });
+      const answer = typeof response === "string" ? response : String(response?.response || response?.answer || "");
+      if (!answer.trim()) return json({ ok: false, error: "empty_model_response", run_id: runId }, 502, cors);
+      return json({
+        ok: true,
+        mode: "advisory",
+        run_id: runId,
+        model,
+        answer: answer.slice(0, 12000),
+        result: answer.slice(0, 12000),
+        tools_used: [],
+        actions_executed: false,
+        verification: { status: "not_executed", note: "Esta ruta asesora y planifica; no ejecuta cambios ni consulta datos privados." },
+        total_ms: Date.now() - startedAt
+      }, 200, cors);
+    } catch (e) {
+      return json({ ok: false, error: "public_agent_failed", detail: String(e?.message || e).slice(0, 240) }, 502, cors);
+    }
+  }
+
   if (method === "POST" && path === "/v1/agent/run") {
     const auth = await authorized(request, env, "ai");
     if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
@@ -577,11 +678,12 @@ export class AstonRateLimiter {
   constructor(ctx, env) { this.ctx = ctx; this.env = env; }
   async fetch(request) {
     const minute = Math.floor(Date.now() / 60000);
-    const key = `count:${minute}`;
-    const count = (await this.ctx.storage.get(key)) || 0;
-    const limit = Number(this.env.RATE_LIMIT_PER_MINUTE || 120);
+    const key = "rate-window";
+    const saved = (await this.ctx.storage.get(key)) || {};
+    const count = saved.minute === minute ? Number(saved.count) || 0 : 0;
+    const limit = Math.max(1, Math.min(300, Number(request.headers.get("x-aston-limit")) || Number(this.env.RATE_LIMIT_PER_MINUTE) || 120));
     if (count >= limit) return json({ ok: false, error: "rate_limited" }, 429, { "retry-after": "60" });
-    await this.ctx.storage.put(key, count + 1);
+    await this.ctx.storage.put(key, { minute, count: count + 1 });
     return json({ ok: true, remaining: limit - count - 1 });
   }
 }

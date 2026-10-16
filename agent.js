@@ -1,4 +1,4 @@
-// ASTON Agent Durable Object — tools + traces (v8.5.0)
+// ASTON Agent Durable Object — tools + traces (v8.5.1)
 const SECTORS = new Set(["primary", "industry", "infrastructure", "fintech", "govtech", "health", "mobility", "media"]);
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 
