@@ -1,3 +1,4 @@
+import "./test-universal-core.mjs";
 import worker from "./index.js";
 import assert from "node:assert/strict";
 
