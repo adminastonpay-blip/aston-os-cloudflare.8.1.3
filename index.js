@@ -1,3 +1,4 @@
+import { diagnoseProblem, createProblemPlan } from "./universal-core.js";
 const SECTORS = new Set([
   "primary", "industry", "infrastructure", "fintech",
   "govtech", "health", "mobility", "media"
@@ -84,6 +85,8 @@ async function ensureSchema(db) {
     db.prepare("CREATE TABLE IF NOT EXISTS plugins_state (plugin_id TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 1, config TEXT, updated_at TEXT NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, payload TEXT, result TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs (tenant, created_at)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS problem_runs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, mode TEXT NOT NULL, objective TEXT, domain TEXT NOT NULL, risk_level TEXT NOT NULL, status TEXT NOT NULL, result_json TEXT NOT NULL, created_at TEXT NOT NULL)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_problem_runs_tenant ON problem_runs (tenant, created_at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL)")
   ]);
 }
@@ -185,6 +188,31 @@ async function handle(request, env, ctx) {
       catch (e) { result.checks.d1_query = false; result.d1_error = String(e?.message || e).slice(0, 300); }
     }
     return json(result, 200, cors);
+  }
+
+  if (method === "POST" && (path === "/v1/problems/diagnose" || path === "/v1/problems/plan")) {
+    const auth = await authorized(request, env, "write");
+    if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
+    if (!env.ASTON_DB) return json({ ok: false, error: "persistence_unavailable", hint: "ASTON_DB binding is required for auditable problem runs" }, 503, cors);
+    const body = await readJson(request);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ ok: false, error: "json_object_required" }, 400, cors);
+    const objective = typeof (body.objective || body.problem) === "string" ? String(body.objective || body.problem).trim() : "";
+    if (!objective) return json({ ok: false, error: "objective_required" }, 400, cors);
+    if (objective.length > 4000) return json({ ok: false, error: "objective_too_long", max: 4000 }, 400, cors);
+    const mode = path.endsWith("/plan") ? "plan" : "diagnose";
+    const result = mode === "plan" ? createProblemPlan(body) : diagnoseProblem(body);
+    const runId = mode === "plan" ? result.plan_id : crypto.randomUUID();
+    const now = new Date().toISOString();
+    try {
+      await ensureSchema(env.ASTON_DB);
+      await env.ASTON_DB.prepare("INSERT INTO problem_runs (id, tenant, mode, objective, domain, risk_level, status, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(runId, auth.tenant, mode, objective.slice(0, 4000), result.diagnosis?.classification?.domain || result.classification?.domain || "general", result.diagnosis?.risk?.level || result.risk?.level || "low", result.status || "diagnosed", JSON.stringify(result).slice(0, 24000), now).run();
+      await audit(env, auth.tenant, auth.actor, "problem." + mode, JSON.stringify({ id: runId, domain: result.diagnosis?.classification?.domain || result.classification?.domain, risk: result.diagnosis?.risk?.level || result.risk?.level }));
+      return json({ ok: true, persisted: true, run_id: runId, tenant: auth.tenant, mode, result }, mode === "plan" ? 201 : 200, cors);
+    } catch (e) {
+      console.error("problem run persistence failed", e?.message || e);
+      return json({ ok: false, error: "problem_run_persistence_failed" }, 500, cors);
+    }
   }
 
   if (method === "GET" && path === "/v1/plugins") {
