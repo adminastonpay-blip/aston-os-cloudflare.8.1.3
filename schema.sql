@@ -11,3 +11,7 @@ CREATE TABLE IF NOT EXISTS plugins_state (plugin_id TEXT PRIMARY KEY, enabled IN
 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, payload TEXT, result TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs (tenant, created_at);
 CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL);
+
+-- Phase 1: bounded metadata for auditable problem diagnosis/planning; raw context is not stored.
+CREATE TABLE IF NOT EXISTS problem_runs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, mode TEXT NOT NULL, objective TEXT, domain TEXT NOT NULL, risk_level TEXT NOT NULL, status TEXT NOT NULL, result_json TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_problem_runs_tenant ON problem_runs (tenant, created_at);
