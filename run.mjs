@@ -20,3 +20,20 @@ assert.ok([401, 503].includes(traces.status));
 
 console.log("ASTON OS 8.5.0 smoke tests passed");
 console.log("Plugins:", rootBody.plugins.list.map(p => p.id).join(", "));
+
+
+const publicDisabled = await worker.fetch(new Request("https://aston.test/v1/agent/public", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ prompt: "Ayudame a diagnosticar un problema" })
+}), {});
+assert.equal(publicDisabled.status, 503);
+assert.equal((await publicDisabled.json()).error, "public_agent_disabled");
+
+const caps = await worker.fetch(new Request("https://aston.test/v1/agent/capabilities"), {});
+const capsBody = await caps.json();
+assert.equal(caps.status, 200);
+assert.equal(capsBody.mode, "advisory");
+assert.equal(capsBody.capabilities.private_data_access, false);
+
+console.log("Public agent safety tests passed");
