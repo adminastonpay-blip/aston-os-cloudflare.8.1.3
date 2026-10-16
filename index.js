@@ -122,7 +122,8 @@ const PLUGIN_DEFINITIONS = [
   { id: "media", name: "Media Library", version: "8.5.0", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
   { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.5.0", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
   { id: "jobs", name: "Background Jobs (Queues)", version: "8.5.0", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
-  { id: "agent", name: "Agent Runtime", version: "8.5.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] }
+  { id: "agent", name: "Agent Runtime", version: "8.5.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
+  { id: "universal-problem-core", name: "Universal Problem Core", version: "1.0.0", description: "Authenticated problem diagnosis and reviewable plans with D1 persistence", requires: ["ASTON_DB"], routes: ["POST /v1/problems/diagnose", "POST /v1/problems/plan"] }
 ];
 
 function isPluginActive(plugin, env) {
