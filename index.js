@@ -675,11 +675,12 @@ export class AstonRateLimiter {
   constructor(ctx, env) { this.ctx = ctx; this.env = env; }
   async fetch(request) {
     const minute = Math.floor(Date.now() / 60000);
-    const key = `count:${minute}`;
-    const count = (await this.ctx.storage.get(key)) || 0;
+    const key = "rate-window";
+    const saved = (await this.ctx.storage.get(key)) || {};
+    const count = saved.minute === minute ? Number(saved.count) || 0 : 0;
     const limit = Math.max(1, Math.min(300, Number(request.headers.get("x-aston-limit")) || Number(this.env.RATE_LIMIT_PER_MINUTE) || 120));
     if (count >= limit) return json({ ok: false, error: "rate_limited" }, 429, { "retry-after": "60" });
-    await this.ctx.storage.put(key, count + 1);
+    await this.ctx.storage.put(key, { minute, count: count + 1 });
     return json({ ok: true, remaining: limit - count - 1 });
   }
 }
