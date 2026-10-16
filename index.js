@@ -1,9 +1,10 @@
+import { handleVoice } from "./voice.js";
 const SECTORS = new Set([
   "primary", "industry", "infrastructure", "fintech",
   "govtech", "health", "mobility", "media"
 ]);
 
-const VERSION = "8.5.0";
+const VERSION = "8.7.0";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -107,19 +108,22 @@ function detectCapabilities(env) {
     semantic_search: Boolean(env.AI) && Boolean(env.VECTORIZE),
     background_jobs: Boolean(env.ASTON_QUEUE),
     agents: Boolean(env.ASTON_AGENT) && Boolean(env.AI),
-    public_chat: env.PUBLIC_CHAT === "true"
+    public_chat: env.PUBLIC_CHAT === "true",
+    voice_tts: Boolean(env.AI),
+    voice_stt: Boolean(env.AI)
   };
 }
 
 const PLUGIN_DEFINITIONS = [
-  { id: "core", name: "ASTON Core", version: "8.5.0", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
-  { id: "session", name: "Session (Durable Object)", version: "8.5.0", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
-  { id: "ai-chat", name: "Workers AI Chat", version: "8.5.0", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
-  { id: "ai-image", name: "Workers AI Image Generation", version: "8.5.0", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
-  { id: "media", name: "Media Library", version: "8.5.0", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
-  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.5.0", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
-  { id: "jobs", name: "Background Jobs (Queues)", version: "8.5.0", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
-  { id: "agent", name: "Agent Runtime", version: "8.5.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] }
+  { id: "core", name: "ASTON Core", version: "8.7.0", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
+  { id: "session", name: "Session (Durable Object)", version: "8.7.0", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
+  { id: "ai-chat", name: "Workers AI Chat", version: "8.7.0", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
+  { id: "ai-image", name: "Workers AI Image Generation", version: "8.7.0", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
+  { id: "media", name: "Media Library", version: "8.7.0", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
+  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.7.0", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
+  { id: "jobs", name: "Background Jobs (Queues)", version: "8.7.0", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
+  { id: "agent", name: "Agent Runtime", version: "8.7.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
+  { id: "voice", name: "Voice (TTS/STT)", version: "8.7.0", description: "Text-to-speech and speech-to-text via Workers AI", requires: ["AI"], routes: ["GET /v1/voice/voices", "POST /v1/voice/tts", "POST /v1/voice/stt"] }
 ];
 
 function isPluginActive(plugin, env) {
@@ -149,6 +153,17 @@ async function upsertVector(env, id, values, metadata) {
   if (!env.VECTORIZE) return false;
   await env.VECTORIZE.upsert([{ id, values, metadata }]);
   return true;
+}
+
+async function trackUsage(env, tenant, route, amount = 1) {
+  if (!env.ASTON_DB) return;
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    await ensureSchema(env.ASTON_DB);
+    await env.ASTON_DB.prepare(
+      "INSERT INTO usage (day, tenant, route, count) VALUES (?, ?, ?, ?) ON CONFLICT(day, tenant, route) DO UPDATE SET count = count + excluded.count"
+    ).bind(day, tenant, route, amount).run();
+  } catch (e) { console.error("usage track failed", e?.message || e); }
 }
 
 async function enqueueJob(env, tenant, type, payload) {
@@ -513,6 +528,13 @@ async function handle(request, env, ctx) {
     const ok = Object.values(checks).every(c => c.ok === true);
     await audit(env, auth.tenant, auth.actor, "storage.diagnostics", JSON.stringify(checks));
     return json({ ok, service: "ASTON OS", version: VERSION, diagnostics: checks, timestamp: new Date().toISOString() }, ok ? 200 : 503, cors);
+  }
+
+  {
+    const voiceRes = await handleVoice(request, env, path, method, url, cors, {
+      json, authorized, ensureSchema, audit, trackUsage, readJson
+    });
+    if (voiceRes) return voiceRes;
   }
 
   return json({ ok: false, error: "not_found", path }, 404, cors);
