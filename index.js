@@ -431,11 +431,8 @@ async function handle(request, env, ctx) {
     if (!env.AI) return json({ ok: false, error: "ai_unavailable" }, 503, cors);
     if (!env.ASTON_RATE_LIMITER) return json({ ok: false, error: "rate_limiter_unavailable" }, 503, cors);
 
-    const body = await readJson(request);
-    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ ok: false, error: "json_object_required" }, 400, cors);
-    const prompt = String(body.prompt || body.message || "").trim();
-    if (!prompt) return json({ ok: false, error: "prompt_required" }, 400, cors);
-    if (prompt.length > 3000) return json({ ok: false, error: "prompt_too_long", max: 3000 }, 413, cors);
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > 16000) return json({ ok: false, error: "request_too_large", max_bytes: 16000 }, 413, cors);
 
     const ip = String(request.headers.get("CF-Connecting-IP") || "unknown").slice(0, 100);
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip));
@@ -451,6 +448,12 @@ async function handle(request, env, ctx) {
       const retryAfter = limitResponse.headers.get("retry-after") || "60";
       return json({ ok: false, error: "rate_limited", retry_after: Number(retryAfter) || 60 }, 429, { ...cors, "retry-after": retryAfter });
     }
+
+    const body = await readJson(request);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ ok: false, error: "json_object_required" }, 400, cors);
+    const prompt = String(body.prompt || body.message || "").trim();
+    if (!prompt) return json({ ok: false, error: "prompt_required" }, 400, cors);
+    if (prompt.length > 3000) return json({ ok: false, error: "prompt_too_long", max: 3000 }, 413, cors);
 
     const history = Array.isArray(body.history) ? body.history.slice(-6).flatMap(item => {
       if (!item || !["user", "assistant"].includes(item.role) || typeof item.content !== "string") return [];
