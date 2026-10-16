@@ -62,10 +62,14 @@ async function authorized(request, env, scope = "read") {
 }
 
 async function audit(env, tenant, actor, action, detail = "") {
-  if (!env.ASTON_DB) return;
+  if (!env.ASTON_DB) return false;
   try {
     await env.ASTON_DB.prepare("INSERT INTO audit_log (ts, tenant, actor, action, detail) VALUES (?, ?, ?, ?, ?)").bind(new Date().toISOString(), tenant, actor, action, String(detail).slice(0, 2000)).run();
-  } catch (e) { console.error("audit_log write failed", e?.message || e); }
+    return true;
+  } catch (e) {
+    console.error("audit_log write failed", e?.message || e);
+    return false;
+  }
 }
 
 async function ensureSchema(db) {
@@ -282,7 +286,8 @@ async function handle(request, env, ctx) {
         page: String(body?.page || "").slice(0, 500),
         properties: body?.properties && typeof body.properties === "object" ? body.properties : {}
       }).slice(0, 2000);
-      await audit(env, auth.tenant, auth.actor, "storefront.event:" + eventName, detail);
+      const persisted = await audit(env, auth.tenant, auth.actor, "storefront.event:" + eventName, detail);
+      if (!persisted) return json({ ok: false, error: "event_write_failed" }, 500, cors);
       return json({ ok: true, accepted: true, event: eventName }, 202, cors);
     } catch {
       return json({ ok: false, error: "event_write_failed" }, 500, cors);
