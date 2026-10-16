@@ -126,6 +126,7 @@ const PLUGIN_DEFINITIONS = [
 ];
 
 function isPluginActive(plugin, env) {
+  if (plugin.id === "public-agent" && env.PUBLIC_AGENT !== "true") return false;
   if (!plugin.requires || plugin.requires.length === 0) return true;
   return plugin.requires.every(binding => Boolean(env[binding]));
 }
