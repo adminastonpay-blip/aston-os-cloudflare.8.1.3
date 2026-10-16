@@ -9,6 +9,8 @@ enabled = true
 [vars]
 ENVIRONMENT = "production"
 PUBLIC_CHAT = "false"
+PUBLIC_AGENT = "true"
+PUBLIC_AGENT_RATE_LIMIT_PER_MINUTE = "8"
 
 [ai]
 binding = "AI"
