@@ -1,0 +1,240 @@
+{% liquid
+  assign marketing_id = 'aston-marketing-' | append: section.id
+%}
+<section id="{{ marketing_id }}" class="aston-mkt" aria-labelledby="{{ marketing_id }}-title">
+  <div class="aston-mkt__wrap">
+    <header class="aston-mkt__hero">
+      <div class="aston-mkt__intro">
+        {% if section.settings.eyebrow != blank %}<p class="aston-mkt__eyebrow"><span></span>{{ section.settings.eyebrow | escape }}</p>{% endif %}
+        <h2 id="{{ marketing_id }}-title">{{ section.settings.heading | escape }}</h2>
+        <p class="aston-mkt__lead">{{ section.settings.description | escape }}</p>
+        <div class="aston-mkt__actions">
+          {% if section.settings.primary_label != blank and section.settings.primary_link != blank %}<a class="aston-mkt__button aston-mkt__button--primary" href="{{ section.settings.primary_link }}">{{ section.settings.primary_label | escape }} <span aria-hidden="true">↗</span></a>{% endif %}
+          {% if section.settings.secondary_label != blank and section.settings.secondary_link != blank %}<a class="aston-mkt__button aston-mkt__button--secondary" href="{{ section.settings.secondary_link }}">{{ section.settings.secondary_label | escape }}</a>{% endif %}
+        </div>
+      </div>
+      <aside class="aston-mkt__brief" aria-label="Marketing operating principles">
+        <div class="aston-mkt__brief-head"><span class="aston-mkt__pulse"></span><span>{{ section.settings.brief_label | escape }}</span><span class="aston-mkt__mode">{{ section.settings.mode_label | escape }}</span></div>
+        <p class="aston-mkt__brief-title">{{ section.settings.brief_title | escape }}</p>
+        <p class="aston-mkt__brief-copy">{{ section.settings.brief_copy | escape }}</p>
+        <div class="aston-mkt__brief-foot"><span>01 / INSIGHT</span><span>02 / EXPERIMENT</span><span>03 / LEARN</span></div>
+      </aside>
+    </header>
+
+    <div class="aston-mkt__section-head">
+      <div><p class="aston-mkt__kicker">GROWTH OPERATIONS</p><h3>{{ section.settings.capabilities_heading | escape }}</h3></div>
+      <p>{{ section.settings.capabilities_intro | escape }}</p>
+    </div>
+
+    <div class="aston-mkt__toolbar">
+      <label class="aston-mkt__search"><span class="aston-mkt__sr-only">Search marketing capabilities</span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" data-mkt-search placeholder="{{ section.settings.search_placeholder | escape }}" autocomplete="off"></label>
+      <div class="aston-mkt__filters" role="group" aria-label="Filter capabilities">
+        <button type="button" class="is-active" data-mkt-filter="all" aria-pressed="true">All capabilities</button>
+        <button type="button" data-mkt-filter="strategy" aria-pressed="false">Strategy</button>
+        <button type="button" data-mkt-filter="content" aria-pressed="false">Content</button>
+        <button type="button" data-mkt-filter="performance" aria-pressed="false">Performance</button>
+        <button type="button" data-mkt-filter="intelligence" aria-pressed="false">Intelligence</button>
+      </div>
+    </div>
+
+    <div class="aston-mkt__grid" data-mkt-grid>
+      {% for block in section.blocks %}
+        <article class="aston-mkt__card" data-mkt-card data-category="{{ block.settings.category }}" data-search="{{ block.settings.title | downcase | escape }} {{ block.settings.description | downcase | escape }}" {{ block.shopify_attributes }}>
+          <div class="aston-mkt__card-top"><span class="aston-mkt__icon" aria-hidden="true">
+            {% case block.settings.icon %}
+              {% when 'target' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="4.5"></circle><circle cx="12" cy="12" r="1"></circle></svg>
+              {% when 'spark' %}<svg viewBox="0 0 24 24"><path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"></path><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path></svg>
+              {% when 'chart' %}<svg viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="m7 14 4-4 3 3 6-7"></path></svg>
+              {% when 'users' %}<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20v-1.5a6.5 6.5 0 0 1 13 0V20"></path><path d="M16 5a3.5 3.5 0 0 1 0 6.8M18 14a5.5 5.5 0 0 1 3.5 5.2"></path></svg>
+              {% when 'search' %}<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5M8 10.5h5M10.5 8v5"></path></svg>
+              {% when 'mail' %}<svg viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="15" rx="2"></rect><path d="m3.5 6 8.5 7 8.5-7"></path></svg>
+              {% when 'globe' %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
+              {% when 'shield' %}<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"></path><path d="m8.5 12 2.3 2.3 4.8-5"></path></svg>
+              {% when 'video' %}<svg viewBox="0 0 24 24"><rect x="2.5" y="5" width="13.5" height="14" rx="2"></rect><path d="m16 10 5.5-3v10L16 14"></path></svg>
+              {% when 'wand' %}<svg viewBox="0 0 24 24"><path d="m4 20 12-12"></path><path d="m14 4 1-2 1 2 2 1-2 1-1 2-1-2-2-1 2-1ZM19 15l.8-1.7.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8ZM5 3l.7 1.3L7 5l-1.3.7L5 7l-.7-1.3L3 5l1.3-.7L5 3Z"></path></svg>
+              {% when 'layers' %}<svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"></path><path d="m3 12 9 5 9-5M3 16l9 5 9-5"></path></svg>
+              {% else %}<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"></path><path d="m7 15 4-5 3 3 5-7"></path></svg>
+            {% endcase %}
+          </span><span class="aston-mkt__card-label">{{ block.settings.label | escape }}</span></div>
+          <h4>{{ block.settings.title | escape }}</h4>
+          <p>{{ block.settings.description | escape }}</p>
+          <div class="aston-mkt__card-bottom"><span class="aston-mkt__category">{{ block.settings.category | capitalize }}</span>{% if block.settings.link != blank %}<a href="{{ block.settings.link }}" class="aston-mkt__card-link">{{ block.settings.link_label | escape }} <span aria-hidden="true">→</span></a>{% else %}<span class="aston-mkt__pending">{{ section.settings.pending_label | escape }}</span>{% endif %}</div>
+        </article>
+      {% endfor %}
+    </div>
+    <p class="aston-mkt__empty" data-mkt-empty hidden>{{ section.settings.empty_message | escape }}</p>
+    <div class="aston-mkt__count" aria-live="polite"><span data-mkt-count>{{ section.blocks.size }}</span> <span>{{ section.settings.count_label | escape }}</span></div>
+
+    <section class="aston-mkt__workflow" aria-labelledby="{{ marketing_id }}-workflow">
+      <div class="aston-mkt__workflow-intro"><p class="aston-mkt__kicker">CONTROLLED AUTONOMY</p><h3 id="{{ marketing_id }}-workflow">{{ section.settings.workflow_heading | escape }}</h3><p>{{ section.settings.workflow_intro | escape }}</p></div>
+      <div class="aston-mkt__steps">
+        <div class="aston-mkt__step"><span>01</span><div><h4>Discover</h4><p>Research customers, competitors, intent and market signals.</p></div></div>
+        <div class="aston-mkt__step"><span>02</span><div><h4>Plan</h4><p>Turn evidence into positioning, channel strategy and experiments.</p></div></div>
+        <div class="aston-mkt__step"><span>03</span><div><h4>Create</h4><p>Produce campaign assets, landing-page briefs and content variations.</p></div></div>
+        <div class="aston-mkt__step"><span>04</span><div><h4>Measure</h4><p>Compare verified results, costs, conversions and incrementality.</p></div></div>
+      </div>
+    </section>
+    <footer class="aston-mkt__footer"><div><strong>{{ section.settings.footer_title | escape }}</strong><p>{{ section.settings.footer_copy | escape }}</p></div>{% if section.settings.footer_link != blank %}<a class="aston-mkt__button aston-mkt__button--secondary" href="{{ section.settings.footer_link }}">{{ section.settings.footer_label | escape }} <span aria-hidden="true">↗</span></a>{% endif %}</footer>
+  </div>
+</section>
+
+<style>
+#{{ marketing_id }}{--mkt-ink:{{ section.settings.ink }};--mkt-muted:{{ section.settings.muted }};--mkt-accent:{{ section.settings.accent }};--mkt-line:{{ section.settings.line }};--mkt-surface:{{ section.settings.surface }};--mkt-card:{{ section.settings.card }};color:var(--mkt-ink);background:var(--mkt-surface);font-family:inherit;padding:clamp(30px,5vw,76px) 20px}
+#{{ marketing_id }} *{box-sizing:border-box}
+#{{ marketing_id }} .aston-mkt__wrap{max-width:1240px;margin:0 auto}
+#{{ marketing_id }} .aston-mkt__hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(270px,.65fr);gap:clamp(28px,5vw,70px);align-items:center;padding-bottom:clamp(38px,6vw,78px)}
+#{{ marketing_id }} .aston-mkt__eyebrow,#{{ marketing_id }} .aston-mkt__kicker{font-size:11px;font-weight:750;letter-spacing:.13em;text-transform:uppercase;color:var(--mkt-accent);margin:0 0 16px;display:flex;align-items:center;gap:9px}
+#{{ marketing_id }} .aston-mkt__eyebrow span{width:7px;height:7px;border-radius:50%;background:var(--mkt-accent);display:inline-block}
+#{{ marketing_id }} h2{font-size:clamp(34px,5.2vw,64px);letter-spacing:-.045em;line-height:1.03;font-weight:680;max-width:760px;margin:0 0 20px}
+#{{ marketing_id }} .aston-mkt__lead{font-size:clamp(16px,1.6vw,19px);line-height:1.7;color:var(--mkt-muted);max-width:690px;margin:0}
+#{{ marketing_id }} .aston-mkt__actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+#{{ marketing_id }} .aston-mkt__button{min-height:46px;padding:12px 18px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:14px;font-size:14px;font-weight:650;transition:transform .18s ease,background .18s ease}
+#{{ marketing_id }} .aston-mkt__button:hover{transform:translateY(-1px)}
+#{{ marketing_id }} .aston-mkt__button--primary{background:var(--mkt-accent);color:#fff}
+#{{ marketing_id }} .aston-mkt__button--secondary{border:1px solid var(--mkt-line);color:var(--mkt-ink);background:transparent}
+#{{ marketing_id }} .aston-mkt__brief{border:1px solid var(--mkt-line);background:var(--mkt-card);border-radius:16px;padding:23px;box-shadow:0 10px 35px rgba(15,23,42,.045)}
+#{{ marketing_id }} .aston-mkt__brief-head{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:750;color:var(--mkt-muted)}
+#{{ marketing_id }} .aston-mkt__pulse{height:7px;width:7px;background:#18845b;border-radius:50%;box-shadow:0 0 0 4px rgba(24,132,91,.11)}
+#{{ marketing_id }} .aston-mkt__mode{margin-left:auto;border:1px solid var(--mkt-line);border-radius:5px;padding:5px 7px;font-size:9px}
+#{{ marketing_id }} .aston-mkt__brief-title{font-size:23px;font-weight:680;letter-spacing:-.025em;line-height:1.2;margin:28px 0 10px}
+#{{ marketing_id }} .aston-mkt__brief-copy{font-size:14px;line-height:1.7;color:var(--mkt-muted);margin:0}
+#{{ marketing_id }} .aston-mkt__brief-foot{border-top:1px solid var(--mkt-line);padding-top:15px;margin-top:25px;display:flex;flex-wrap:wrap;gap:9px 14px;font-size:9px;letter-spacing:.06em;font-weight:750;color:var(--mkt-muted)}
+#{{ marketing_id }} .aston-mkt__section-head{display:flex;align-items:end;justify-content:space-between;gap:25px;margin-bottom:24px}
+#{{ marketing_id }} .aston-mkt__section-head h3,#{{ marketing_id }} .aston-mkt__workflow h3{font-size:clamp(25px,3vw,36px);letter-spacing:-.035em;line-height:1.12;margin:0;font-weight:680}
+#{{ marketing_id }} .aston-mkt__section-head>p{max-width:440px;font-size:14px;line-height:1.7;color:var(--mkt-muted);margin:0}
+#{{ marketing_id }} .aston-mkt__toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+#{{ marketing_id }} .aston-mkt__search{display:flex;align-items:center;gap:10px;max-width:420px;border:1px solid var(--mkt-line);background:var(--mkt-card);padding:0 13px;border-radius:8px;min-height:44px}
+#{{ marketing_id }} .aston-mkt__search svg{width:18px;stroke:var(--mkt-muted);fill:none;stroke-width:1.7;flex-shrink:0}
+#{{ marketing_id }} .aston-mkt__search input{border:0!important;outline:none!important;box-shadow:none!important;background:transparent!important;color:var(--mkt-ink);width:100%;min-width:0;font:inherit;font-size:14px;padding:10px 0}
+#{{ marketing_id }} .aston-mkt__filters{display:flex;flex-wrap:wrap;gap:8px}
+#{{ marketing_id }} .aston-mkt__filters button{font:inherit;font-size:12px;padding:9px 13px;border:1px solid var(--mkt-line);border-radius:7px;color:var(--mkt-muted);background:transparent;cursor:pointer}
+#{{ marketing_id }} .aston-mkt__filters button.is-active{color:var(--mkt-accent);border-color:var(--mkt-accent);background:color-mix(in srgb,var(--mkt-accent) 7%,transparent);font-weight:700}
+#{{ marketing_id }} .aston-mkt__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+#{{ marketing_id }} .aston-mkt__card{min-width:0;border:1px solid var(--mkt-line);border-radius:12px;background:var(--mkt-card);padding:22px;display:flex;flex-direction:column;min-height:230px;transition:border-color .18s ease,transform .18s ease}
+#{{ marketing_id }} .aston-mkt__card:hover{border-color:color-mix(in srgb,var(--mkt-accent) 45%,var(--mkt-line));transform:translateY(-2px)}
+#{{ marketing_id }} .aston-mkt__card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+#{{ marketing_id }} .aston-mkt__icon{width:39px;height:39px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--mkt-accent) 9%,transparent);color:var(--mkt-accent)}
+#{{ marketing_id }} .aston-mkt__icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;stroke-linejoin:round}
+#{{ marketing_id }} .aston-mkt__card-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:750;color:var(--mkt-muted);text-align:right}
+#{{ marketing_id }} .aston-mkt__card h4{font-size:18px;line-height:1.25;letter-spacing:-.02em;margin:0 0 9px;font-weight:680}
+#{{ marketing_id }} .aston-mkt__card>p{font-size:13px;line-height:1.65;color:var(--mkt-muted);margin:0 0 24px}
+#{{ marketing_id }} .aston-mkt__card-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:14px;border-top:1px solid var(--mkt-line)}
+#{{ marketing_id }} .aston-mkt__category{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--mkt-muted);font-weight:750}
+#{{ marketing_id }} .aston-mkt__card-link{font-size:12px;text-decoration:none;color:var(--mkt-accent);font-weight:700}
+#{{ marketing_id }} .aston-mkt__pending{font-size:10px;color:var(--mkt-muted)}
+#{{ marketing_id }} .aston-mkt__count{font-size:12px;color:var(--mkt-muted);text-align:right;margin-top:15px}
+#{{ marketing_id }} .aston-mkt__empty{border:1px dashed var(--mkt-line);padding:26px;border-radius:10px;color:var(--mkt-muted);text-align:center}
+#{{ marketing_id }} .aston-mkt__workflow{margin-top:clamp(48px,7vw,84px);padding:clamp(24px,4vw,44px);background:var(--mkt-card);border:1px solid var(--mkt-line);border-radius:16px;display:grid;grid-template-columns:.75fr 1.25fr;gap:38px}
+#{{ marketing_id }} .aston-mkt__workflow-intro>p:last-child{font-size:14px;line-height:1.7;color:var(--mkt-muted);margin:14px 0 0}
+#{{ marketing_id }} .aston-mkt__steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 20px}
+#{{ marketing_id }} .aston-mkt__step{display:flex;gap:13px;align-items:flex-start}
+#{{ marketing_id }} .aston-mkt__step>span{font-size:11px;font-weight:800;color:var(--mkt-accent);padding-top:3px}
+#{{ marketing_id }} .aston-mkt__step h4{font-size:15px;margin:0 0 5px;font-weight:700}
+#{{ marketing_id }} .aston-mkt__step p{font-size:12px;line-height:1.6;color:var(--mkt-muted);margin:0}
+#{{ marketing_id }} .aston-mkt__footer{margin-top:20px;padding:24px 0 0;border-top:1px solid var(--mkt-line);display:flex;align-items:center;justify-content:space-between;gap:22px}
+#{{ marketing_id }} .aston-mkt__footer strong{font-size:15px}
+#{{ marketing_id }} .aston-mkt__footer p{font-size:13px;color:var(--mkt-muted);line-height:1.6;margin:6px 0 0}
+#{{ marketing_id }} .aston-mkt__sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:900px){#{{ marketing_id }} .aston-mkt__hero{grid-template-columns:1fr;gap:26px}#{{ marketing_id }} .aston-mkt__brief{max-width:none}#{{ marketing_id }} .aston-mkt__grid{grid-template-columns:repeat(2,minmax(0,1fr))}#{{ marketing_id }} .aston-mkt__workflow{grid-template-columns:1fr;gap:25px}}
+@media(max-width:600px){#{{ marketing_id }}{padding:32px 15px}#{{ marketing_id }} .aston-mkt__section-head{display:block}#{{ marketing_id }} .aston-mkt__section-head>p{margin-top:12px}#{{ marketing_id }} .aston-mkt__grid{grid-template-columns:1fr}#{{ marketing_id }} .aston-mkt__card{min-height:0}#{{ marketing_id }} .aston-mkt__steps{grid-template-columns:1fr;gap:19px}#{{ marketing_id }} .aston-mkt__footer{align-items:flex-start;flex-direction:column}#{{ marketing_id }} .aston-mkt__brief-foot{gap:8px 11px}}
+@media(prefers-reduced-motion:reduce){#{{ marketing_id }} *{transition:none!important;scroll-behavior:auto!important}}
+</style>
+<script>
+(function(){
+  var root=document.getElementById({{ marketing_id | json }});
+  if(!root||root.dataset.mktReady)return;
+  root.dataset.mktReady='true';
+  var search=root.querySelector('[data-mkt-search]');
+  var cards=Array.prototype.slice.call(root.querySelectorAll('[data-mkt-card]'));
+  var filters=Array.prototype.slice.call(root.querySelectorAll('[data-mkt-filter]'));
+  var count=root.querySelector('[data-mkt-count]');
+  var empty=root.querySelector('[data-mkt-empty]');
+  var active='all';
+  function apply(){
+    var term=(search&&search.value||'').toLowerCase().trim(),visible=0;
+    cards.forEach(function(card){
+      var category=(card.getAttribute('data-category')||'').toLowerCase();
+      var haystack=(card.getAttribute('data-search')||'').toLowerCase();
+      var show=(active==='all'||category===active)&&(!term||haystack.indexOf(term)>-1);
+      card.hidden=!show;if(show)visible++;
+    });
+    if(count)count.textContent=visible;
+    if(empty)empty.hidden=visible!==0;
+  }
+  if(search)search.addEventListener('input',apply);
+  filters.forEach(function(button){button.addEventListener('click',function(){
+    active=button.getAttribute('data-mkt-filter')||'all';
+    filters.forEach(function(other){var selected=other===button;other.classList.toggle('is-active',selected);other.setAttribute('aria-pressed',selected?'true':'false');});
+    apply();
+  });});
+  apply();
+})();
+</script>
+
+{% schema %}
+{
+  "name": "ASTON Marketing AI",
+  "tag": "section",
+  "class": "section-aston-marketing-ai",
+  "settings": [
+    {"type":"text","id":"eyebrow","label":"Eyebrow","default":"ASTON OS · MARKETING INTELLIGENCE"},
+    {"type":"text","id":"heading","label":"Main heading","default":"Marketing, engineered for growth."},
+    {"type":"textarea","id":"description","label":"Description","default":"A unified command center for market intelligence, campaign strategy, creative production and performance optimization. One operating view, built around measurable outcomes."},
+    {"type":"text","id":"primary_label","label":"Primary button label","default":"Explore capabilities"},
+    {"type":"url","id":"primary_link","label":"Primary button link"},
+    {"type":"text","id":"secondary_label","label":"Secondary button label","default":"View the workflow"},
+    {"type":"url","id":"secondary_link","label":"Secondary button link"},
+    {"type":"text","id":"brief_label","label":"Brief status label","default":"Operating framework"},
+    {"type":"text","id":"mode_label","label":"Mode label","default":"HUMAN-APPROVED"},
+    {"type":"text","id":"brief_title","label":"Brief title","default":"From market signal to measurable action."},
+    {"type":"textarea","id":"brief_copy","label":"Brief copy","default":"A structured loop: gather evidence, prioritize opportunities, launch controlled experiments, and learn from verified results. External actions stay under your control."},
+    {"type":"text","id":"capabilities_heading","label":"Capabilities heading","default":"One team of specialist capabilities."},
+    {"type":"textarea","id":"capabilities_intro","label":"Capabilities introduction","default":"Explore the operating modules. Connectors, live metrics and execution depend on the integrations enabled for your business."},
+    {"type":"text","id":"search_placeholder","label":"Search placeholder","default":"Search a capability…"},
+    {"type":"text","id":"pending_label","label":"No-link label","default":"Setup required"},
+    {"type":"text","id":"empty_message","label":"No-results message","default":"No capabilities match your search. Try another term or filter."},
+    {"type":"text","id":"count_label","label":"Count label","default":"capabilities shown"},
+    {"type":"text","id":"workflow_heading","label":"Workflow heading","default":"An accountable growth loop."},
+    {"type":"textarea","id":"workflow_intro","label":"Workflow introduction","default":"Automation should compound learning, not hide decisions. Keep evidence, approvals and outcomes visible at every step."},
+    {"type":"text","id":"footer_title","label":"Footer title","default":"Built for teams that expect evidence."},
+    {"type":"textarea","id":"footer_copy","label":"Footer copy","default":"Connect your analytics and marketing platforms to move from a designed interface to verified operations."},
+    {"type":"text","id":"footer_label","label":"Footer button label","default":"Configure integrations"},
+    {"type":"url","id":"footer_link","label":"Footer button link"},
+    {"type":"color","id":"accent","label":"Accent color","default":"#2457C5"},
+    {"type":"color","id":"ink","label":"Text color","default":"#172033"},
+    {"type":"color","id":"muted","label":"Secondary text","default":"#687386"},
+    {"type":"color","id":"line","label":"Border color","default":"#E1E6EE"},
+    {"type":"color","id":"surface","label":"Section background","default":"#F7F9FC"},
+    {"type":"color","id":"card","label":"Card background","default":"#FFFFFF"}
+  ],
+  "blocks": [
+    {"type":"capability","name":"Capability card","settings":[
+      {"type":"select","id":"icon","label":"Icon","default":"target","options":[{"value":"target","label":"Target"},{"value":"spark","label":"Spark"},{"value":"chart","label":"Chart"},{"value":"users","label":"Audience"},{"value":"search","label":"Search"},{"value":"mail","label":"Email"},{"value":"globe","label":"Global"},{"value":"shield","label":"Trust"},{"value":"video","label":"Video"},{"value":"wand","label":"Creative"},{"value":"layers","label":"Layers"}]},
+      {"type":"text","id":"label","label":"Eyebrow label","default":"STRATEGY"},
+      {"type":"text","id":"title","label":"Title","default":"Market and competitor intelligence"},
+      {"type":"textarea","id":"description","label":"Description","default":"Map category trends, audience needs, competitor positioning and whitespace opportunities."},
+      {"type":"select","id":"category","label":"Filter category","default":"strategy","options":[{"value":"strategy","label":"Strategy"},{"value":"content","label":"Content"},{"value":"performance","label":"Performance"},{"value":"intelligence","label":"Intelligence"}]},
+      {"type":"url","id":"link","label":"Optional destination"},
+      {"type":"text","id":"link_label","label":"Link label","default":"Open module"}
+    ]},
+    {"type":"@app"}
+  ],
+  "max_blocks": 24,
+  "presets": [
+    {"name":"ASTON Marketing AI","blocks":[
+      {"type":"capability","settings":{"icon":"search","label":"INTELLIGENCE","title":"Market and competitor intelligence","description":"Research category shifts, competitor messaging, search demand and customer pain points.","category":"intelligence"}},
+      {"type":"capability","settings":{"icon":"target","label":"STRATEGY","title":"Positioning and go-to-market","description":"Build audience segments, value propositions, messaging pillars and channel plans.","category":"strategy"}},
+      {"type":"capability","settings":{"icon":"spark","label":"AI campaign studio","title":"Campaign and creative studio","description":"Draft campaign concepts, copy variants, creative briefs and landing-page messaging.","category":"content"}},
+      {"type":"capability","settings":{"icon":"video","label":"CONTENT","title":"Content and editorial engine","description":"Plan channel-specific calendars, repurpose approved assets and maintain brand consistency.","category":"content"}},
+      {"type":"capability","settings":{"icon":"chart","label":"PERFORMANCE","title":"Paid media optimization","description":"Structure experiments, compare verified spend and conversions, and surface budget recommendations.","category":"performance"}},
+      {"type":"capability","settings":{"icon":"users","label":"AUDIENCE","title":"Customer journey and segmentation","description":"Map customer journeys, lifecycle stages, intent signals and relevant audience cohorts.","category":"intelligence"}},
+      {"type":"capability","settings":{"icon":"mail","label":"LIFECYCLE","title":"Email and retention marketing","description":"Design welcome, education, replenishment and win-back flows with consent-aware targeting.","category":"performance"}},
+      {"type":"capability","settings":{"icon":"globe","label":"SEO & DISCOVERY","title":"Search and organic growth","description":"Identify search opportunities, content gaps, technical priorities and discovery improvements.","category":"performance"}},
+      {"type":"capability","settings":{"icon":"wand","label":"CONVERSION","title":"CRO and experimentation","description":"Prioritize page friction, propose A/B tests and document evidence behind conversion changes.","category":"performance"}},
+      {"type":"capability","settings":{"icon":"layers","label":"BRAND SYSTEM","title":"Brand and omnichannel consistency","description":"Keep messaging, offers and creative standards coherent across connected channels.","category":"strategy"}},
+      {"type":"capability","settings":{"icon":"chart","label":"ATTRIBUTION","title":"Analytics and growth reporting","description":"Bring channel outcomes into one reporting model and distinguish measured facts from estimates.","category":"intelligence"}},
+      {"type":"capability","settings":{"icon":"shield","label":"GOVERNANCE","title":"Brand safety and compliance","description":"Review claims, permissions, privacy, approval status and campaign risks before launch.","category":"strategy"}}
+    ]}
+  ]
+}
+{% endschema %}
