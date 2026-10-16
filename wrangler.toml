@@ -9,6 +9,9 @@ enabled = true
 [vars]
 ENVIRONMENT = "production"
 PUBLIC_CHAT = "false"
+ALLOWED_ORIGIN = "https://www.laneaston.com"
+PUBLIC_AGENT = "true"
+PUBLIC_AGENT_RATE_LIMIT_PER_MINUTE = "8"
 PUBLIC_AGENT = "true"
 PUBLIC_AGENT_RATE_LIMIT_PER_MINUTE = "8"
 
