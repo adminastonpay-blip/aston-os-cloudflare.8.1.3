@@ -4,7 +4,7 @@ const SECTORS = new Set([
   "govtech", "health", "mobility", "media"
 ]);
 
-const VERSION = "8.8.0";
+const VERSION = "8.9.0";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -112,20 +112,21 @@ function detectCapabilities(env) {
     public_chat: env.PUBLIC_CHAT === "true",
     voice_tts: Boolean(env.AI),
     voice_stt: Boolean(env.AI),
-    voice_clone: Boolean(env.ELEVENLABS_API_KEY)
+    voice_clone: Boolean(env.ELEVENLABS_API_KEY),
+    voice_realtime: Boolean(env.ASTON_VOICE) && Boolean(env.AI)
   };
 }
 
 const PLUGIN_DEFINITIONS = [
-  { id: "core", name: "ASTON Core", version: "8.8.0", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
-  { id: "session", name: "Session (Durable Object)", version: "8.8.0", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
-  { id: "ai-chat", name: "Workers AI Chat", version: "8.8.0", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
-  { id: "ai-image", name: "Workers AI Image Generation", version: "8.8.0", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
-  { id: "media", name: "Media Library", version: "8.8.0", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
-  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.8.0", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
-  { id: "jobs", name: "Background Jobs (Queues)", version: "8.8.0", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
-  { id: "agent", name: "Agent Runtime", version: "8.8.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
-  { id: "voice", name: "Voice (TTS/STT/Clone)", version: "8.8.0", description: "TTS/STT via Workers AI; Instant Voice Clone via ElevenLabs", requires: ["AI"], routes: ["GET /v1/voice/voices", "POST /v1/voice/tts", "POST /v1/voice/stt", "POST /v1/voice/clone", "GET /v1/voice/clones", "DELETE /v1/voice/clones/:id", "POST /v1/voice/speak"] }
+  { id: "core", name: "ASTON Core", version: "8.9.0", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
+  { id: "session", name: "Session (Durable Object)", version: "8.9.0", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
+  { id: "ai-chat", name: "Workers AI Chat", version: "8.9.0", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
+  { id: "ai-image", name: "Workers AI Image Generation", version: "8.9.0", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
+  { id: "media", name: "Media Library", version: "8.9.0", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
+  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.9.0", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
+  { id: "jobs", name: "Background Jobs (Queues)", version: "8.9.0", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
+  { id: "agent", name: "Agent Runtime", version: "8.9.0", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
+  { id: "voice", name: "Voice (TTS/STT/Clone/Realtime)", version: "8.9.0", description: "TTS/STT, ElevenLabs clone, WebSocket realtime agent", requires: ["AI"], routes: ["GET /v1/voice/voices", "POST /v1/voice/tts", "POST /v1/voice/stt", "POST /v1/voice/clone", "GET /v1/voice/clones", "POST /v1/voice/speak", "GET /v1/voice/realtime", "WS /v1/voice/ws"] }
 ];
 
 function isPluginActive(plugin, env) {
@@ -621,3 +622,4 @@ export class AstonLedgerLock {
 }
 
 export { AstonAgent } from "./agent.js";
+export { AstonVoiceSession } from "./voice-realtime.js";
