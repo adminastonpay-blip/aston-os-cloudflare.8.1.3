@@ -1,4 +1,5 @@
-// ASTON Voice plugin — Phase 1 (TTS / STT / voices) v8.7.0
+import { handleVoiceClone } from "./voice-clone.js";
+// ASTON Voice plugin — Phase 1 (TTS / STT / voices) v8.7.0 + clone wire
 const TTS_MODELS = {
   en: "@cf/deepgram/aura-2-en",
   es: "@cf/deepgram/aura-2-es",
@@ -61,16 +62,53 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       tts_models: TTS_MODELS,
       stt_model: STT_MODEL,
       voices: VOICES,
-      note: "speaker ids for Aura-2; lang en uses aura-2-en, es uses aura-2-es"
+      clone_available: Boolean(env.ELEVENLABS_API_KEY),
+      note: "Aura-2 speakers; clones need ELEVENLABS_API_KEY; speaker=clone:<id> + provider=elevenlabs"
     }, 200, cors);
   }
 
   if (method === "POST" && path === "/v1/voice/tts") {
     const auth = await authorized(request, env, "ai");
     if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
-    if (!env.AI) return json({ ok: false, error: "plugin_inactive", plugin: "voice", missing_bindings: ["AI"] }, 503, cors);
 
     const body = await readJson(request);
+    const provider = String(body?.provider || "cloudflare").toLowerCase();
+    const speakerEarly = String(body?.speaker || body?.voice || "luna");
+    if (provider === "elevenlabs" || speakerEarly.startsWith("clone:")) {
+      if (!env.ELEVENLABS_API_KEY) return json({ ok: false, error: "elevenlabs_key_required" }, 503, cors);
+      const textEl = typeof body?.text === "string" ? body.text.trim() : "";
+      if (!textEl) return json({ ok: false, error: "text_required" }, 400, cors);
+      let voiceId = body?.external_id || body?.voice_id;
+      if (speakerEarly.startsWith("clone:") && env.ASTON_DB) {
+        try {
+          const row = await env.ASTON_DB.prepare("SELECT external_id FROM voice_clones WHERE id = ? AND tenant = ?").bind(speakerEarly.slice(6), auth.tenant).first();
+          if (row?.external_id) voiceId = row.external_id;
+        } catch (_) {}
+      }
+      if (!voiceId) return json({ ok: false, error: "voice_id_or_clone_required" }, 400, cors);
+      try {
+        const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: "POST",
+          headers: { "xi-api-key": env.ELEVENLABS_API_KEY, "content-type": "application/json", "accept": "audio/mpeg" },
+          body: JSON.stringify({ text: textEl.slice(0, 5000), model_id: body?.model || "eleven_multilingual_v2" })
+        });
+        if (!elRes.ok) return json({ ok: false, error: "elevenlabs_tts_failed", detail: (await elRes.text()).slice(0, 400) }, 502, cors);
+        const bytes = await elRes.arrayBuffer();
+        const id = crypto.randomUUID();
+        let stored = false;
+        const r2Key = `${auth.tenant}/voice/${id}.mp3`;
+        if (env.ASTON_R2) { try { await env.ASTON_R2.put(r2Key, bytes, { httpMetadata: { contentType: "audio/mpeg" } }); stored = true; } catch (_) {} }
+        if (typeof trackUsage === "function") await trackUsage(env, auth.tenant, "voice.tts", 1);
+        await audit(env, auth.tenant, auth.actor, "voice.tts", `elevenlabs:${voiceId}`);
+        const payload = { ok: true, plugin: "voice", id, provider: "elevenlabs", voice_id: voiceId, size_bytes: bytes.byteLength, stored_in_r2: stored, r2_key: stored ? r2Key : null };
+        if (body?.return_base64 === true || body?.return_base64 === "true") payload.audio_base64 = arrayBufferToBase64(bytes);
+        return json(payload, 201, cors);
+      } catch (e) {
+        return json({ ok: false, error: "tts_failed", detail: String(e?.message || e).slice(0, 300) }, 502, cors);
+      }
+    }
+    if (!env.AI) return json({ ok: false, error: "plugin_inactive", plugin: "voice", missing_bindings: ["AI"] }, 503, cors);
+
     const text = typeof body?.text === "string" ? body.text.trim() : "";
     if (!text) return json({ ok: false, error: "text_required" }, 400, cors);
     if (text.length > 5000) return json({ ok: false, error: "text_too_long", max: 5000 }, 400, cors);
@@ -221,5 +259,9 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
     }
   }
 
+  {
+    const cloneRes = await handleVoiceClone(request, env, path, method, url, cors, helpers);
+    if (cloneRes) return cloneRes;
+  }
   return null;
 }
