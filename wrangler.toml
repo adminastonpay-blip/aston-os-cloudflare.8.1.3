@@ -36,7 +36,8 @@ bindings = [
   { name = "ASTON_SESSION", class_name = "AstonSession" },
   { name = "ASTON_RATE_LIMITER", class_name = "AstonRateLimiter" },
   { name = "ASTON_LEDGER_LOCK", class_name = "AstonLedgerLock" },
-  { name = "ASTON_AGENT", class_name = "AstonAgent" }
+  { name = "ASTON_AGENT", class_name = "AstonAgent" },
+  { name = "ASTON_VOICE", class_name = "AstonVoiceSession" }
 ]
 
 [[migrations]]
@@ -47,16 +48,20 @@ new_sqlite_classes = ["AstonSession", "AstonRateLimiter", "AstonLedgerLock"]
 tag = "v2-agent"
 new_sqlite_classes = ["AstonAgent"]
 
+[[migrations]]
+tag = "v3-voice"
+new_sqlite_classes = ["AstonVoiceSession"]
+
 [triggers]
 crons = ["0 * * * *"]
 
-# OPTIONAL — create first, then uncomment:
+# OPTIONAL — uncomment after creating the resource:
 #   npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
 # [[vectorize]]
 # binding = "VECTORIZE"
 # index_name = "aston-omni-index"
 
-# OPTIONAL — create first, then uncomment:
+# OPTIONAL — uncomment after creating the queue:
 #   npx wrangler queues create aston-global-queue
 # [[queues.producers]]
 # binding = "ASTON_QUEUE"
