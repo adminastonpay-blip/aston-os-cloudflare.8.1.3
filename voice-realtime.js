@@ -1,7 +1,7 @@
-// ASTON Voice Realtime — WebSocket voice agent (Phase 3 / v8.9.0)
+// ASTON Voice Realtime — WebSocket voice agent (Phase 3–4 / v8.10.0)
 // Protocol (JSON over WS):
 //   Client → Server: auth | config | audio | text | ping | end
-//   Server → Client: ready | transcript | reply | audio | status | error | pong
+//   Server → Client: ready | transcript | reply | reply_delta | audio | audio_chunk | audio_end | status | error | pong
 
 const STT_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const TTS_MODELS = {
@@ -12,6 +12,82 @@ const TTS_MODELS = {
 const LLM_DEFAULT = "@cf/meta/llama-3.1-8b-instruct";
 const MAX_HISTORY = 12;
 const MAX_AUDIO_B64 = 8_000_000;
+
+function splitSentences(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+  const parts = raw
+    .split(/(?<=[.!?…。！？])\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  const merged = [];
+  for (const p of parts) {
+    if (merged.length && p.length < 12) merged[merged.length - 1] += " " + p;
+    else merged.push(p);
+  }
+  if (merged.length > 8) {
+    const mid = Math.ceil(merged.length / 2);
+    return [merged.slice(0, mid).join(" "), merged.slice(mid).join(" ")].filter(Boolean);
+  }
+  return merged.length ? merged : [raw];
+}
+
+async function streamLlmReply(env, model, messages, onDelta) {
+  try {
+    const response = await env.AI.run(model, { messages, stream: true });
+    if (response && typeof response.getReader === "function") {
+      const reader = response.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          const t = line.trim();
+          if (!t || t === "data: [DONE]") continue;
+          let payload = t.startsWith("data:") ? t.slice(5).trim() : t;
+          try {
+            const j = JSON.parse(payload);
+            const piece =
+              j.response || j.text || j.delta ||
+              j.choices?.[0]?.delta?.content ||
+              j.choices?.[0]?.text || "";
+            if (piece) {
+              full += piece;
+              if (onDelta) onDelta(piece, full);
+            }
+          } catch {
+            if (payload && payload !== "[DONE]") {
+              full += payload;
+              if (onDelta) onDelta(payload, full);
+            }
+          }
+        }
+      }
+      if (buffer.trim()) {
+        try {
+          const j = JSON.parse(buffer.trim().replace(/^data:\s*/, ""));
+          const piece = j.response || j.text || "";
+          if (piece) { full += piece; if (onDelta) onDelta(piece, full); }
+        } catch {
+          full += buffer.trim();
+        }
+      }
+      return String(full).trim();
+    }
+  } catch (e) {
+    console.error("stream llm fallback", e?.message || e);
+  }
+  const response = await env.AI.run(model, { messages });
+  const text = typeof response === "string"
+    ? response
+    : (response?.response || response?.result?.response || response?.text || JSON.stringify(response));
+  return String(text).trim();
+}
 
 function arrayBufferToBase64(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -78,7 +154,9 @@ export class AstonVoiceSession {
       tenant, speaker, lang, provider,
       voice_id: url.searchParams.get("voice_id") || null,
       history: [],
-      authenticated: Boolean(request.headers.get("x-aston-actor"))
+      authenticated: Boolean(request.headers.get("x-aston-actor")),
+      stream_tts: true,
+      stream_llm: true
     };
     this.sessions.set(server, state);
 
@@ -88,15 +166,16 @@ export class AstonVoiceSession {
     } catch (_) {}
 
     send(server, {
-      type: "ready", ok: true, plugin: "voice-realtime", version: "8.9.0", tenant,
+      type: "ready", ok: true, plugin: "voice-realtime", version: "8.10.0", tenant,
       capabilities: {
         stt: Boolean(this.env.AI), tts: Boolean(this.env.AI), llm: Boolean(this.env.AI),
-        elevenlabs: Boolean(this.env.ELEVENLABS_API_KEY), r2: Boolean(this.env.ASTON_R2)
+        elevenlabs: Boolean(this.env.ELEVENLABS_API_KEY), r2: Boolean(this.env.ASTON_R2),
+        stream_tts: true, stream_llm: true
       },
-      config: { speaker, lang, provider },
+      config: { speaker, lang, provider, stream_tts: true, stream_llm: true },
       protocol: {
         client: ["auth", "config", "audio", "text", "ping", "end"],
-        server: ["ready", "transcript", "reply", "audio", "status", "error", "pong"]
+        server: ["ready", "transcript", "reply", "reply_delta", "audio", "audio_chunk", "audio_end", "status", "error", "pong"]
       }
     });
 
@@ -105,7 +184,8 @@ export class AstonVoiceSession {
 
   async webSocketMessage(ws, message) {
     const state = this.sessions.get(ws) || {
-      tenant: "default", speaker: "luna", lang: "es", provider: "cloudflare", history: [], authenticated: false
+      tenant: "default", speaker: "luna", lang: "es", provider: "cloudflare",
+      history: [], authenticated: false, stream_tts: true, stream_llm: true
     };
     this.sessions.set(ws, state);
 
@@ -148,9 +228,16 @@ export class AstonVoiceSession {
       if (msg.provider) state.provider = String(msg.provider).slice(0, 32);
       if (msg.voice_id) state.voice_id = String(msg.voice_id).slice(0, 128);
       if (msg.llm_model) state.llm_model = String(msg.llm_model).slice(0, 128);
+      if (typeof msg.stream_tts === "boolean") state.stream_tts = msg.stream_tts;
+      if (typeof msg.stream_llm === "boolean") state.stream_llm = msg.stream_llm;
       send(ws, {
         type: "ready", ok: true,
-        config: { speaker: state.speaker, lang: state.lang, provider: state.provider, voice_id: state.voice_id || null }
+        config: {
+          speaker: state.speaker, lang: state.lang, provider: state.provider,
+          voice_id: state.voice_id || null,
+          stream_tts: state.stream_tts !== false,
+          stream_llm: state.stream_llm !== false
+        }
       });
       return;
     }
@@ -209,17 +296,28 @@ export class AstonVoiceSession {
       content: "You are ASTON OS voice assistant. Reply briefly in the same language as the user. Prefer 1–3 short spoken sentences. No markdown, no bullet lists."
     };
     const model = state.llm_model || this.env.AI_MODEL || LLM_DEFAULT;
+    const streamLlm = state.stream_llm !== false;
+    const streamTts = state.stream_tts !== false;
+
     let replyText = "";
     try {
-      const response = await this.env.AI.run(model, { messages: [system, ...state.history] });
-      replyText = typeof response === "string"
-        ? response
-        : (response?.response || response?.result?.response || response?.text || JSON.stringify(response));
+      if (streamLlm) {
+        replyText = await streamLlmReply(this.env, model, [system, ...state.history], (delta, full) => {
+          send(ws, { type: "reply_delta", text: delta, full: full.slice(0, 2000) });
+        });
+      } else {
+        const response = await this.env.AI.run(model, { messages: [system, ...state.history] });
+        replyText = typeof response === "string"
+          ? response
+          : (response?.response || response?.result?.response || response?.text || JSON.stringify(response));
+      }
       replyText = String(replyText).trim().slice(0, 2000);
     } catch (e) {
       send(ws, { type: "error", error: "llm_failed", detail: String(e?.message || e).slice(0, 300) });
       return;
     }
+
+    if (!replyText) { send(ws, { type: "error", error: "empty_reply" }); return; }
 
     state.history.push({ role: "assistant", content: replyText });
     try {
@@ -231,18 +329,56 @@ export class AstonVoiceSession {
 
     send(ws, { type: "status", phase: "tts" });
     try {
-      const audioPayload = await this.synthesize(state, replyText);
-      if (audioPayload) {
-        send(ws, {
-          type: "audio",
-          content_type: audioPayload.contentType,
-          size_bytes: audioPayload.size,
-          audio_base64: audioPayload.base64,
-          provider: audioPayload.provider
-        });
+      if (streamTts) {
+        const sentences = splitSentences(replyText);
+        send(ws, { type: "status", phase: "tts", mode: "stream", chunks_planned: sentences.length });
+        let totalBytes = 0;
+        for (let i = 0; i < sentences.length; i++) {
+          const sentence = sentences[i];
+          try {
+            const audioPayload = await this.synthesize(state, sentence);
+            if (audioPayload) {
+              totalBytes += audioPayload.size;
+              send(ws, {
+                type: "audio_chunk",
+                index: i,
+                total: sentences.length,
+                final: i === sentences.length - 1,
+                text: sentence,
+                content_type: audioPayload.contentType,
+                size_bytes: audioPayload.size,
+                audio_base64: audioPayload.base64,
+                provider: audioPayload.provider
+              });
+            }
+          } catch (chunkErr) {
+            send(ws, {
+              type: "error", error: "tts_chunk_failed", index: i,
+              detail: String(chunkErr?.message || chunkErr).slice(0, 200),
+              text: sentence.slice(0, 120)
+            });
+          }
+        }
+        send(ws, { type: "audio_end", chunks: sentences.length, size_bytes: totalBytes, mode: "stream" });
+      } else {
+        const audioPayload = await this.synthesize(state, replyText);
+        if (audioPayload) {
+          send(ws, {
+            type: "audio",
+            content_type: audioPayload.contentType,
+            size_bytes: audioPayload.size,
+            audio_base64: audioPayload.base64,
+            provider: audioPayload.provider,
+            mode: "oneshot"
+          });
+        }
       }
     } catch (e) {
-      send(ws, { type: "error", error: "tts_failed", detail: String(e?.message || e).slice(0, 300), note: "text reply was delivered" });
+      send(ws, {
+        type: "error", error: "tts_failed",
+        detail: String(e?.message || e).slice(0, 300),
+        note: "text reply was delivered"
+      });
     }
 
     send(ws, { type: "status", phase: "done" });
@@ -292,13 +428,13 @@ export class AstonVoiceSession {
 }
 
 export async function handleVoiceRealtime(request, env, path, method, url, cors, helpers) {
-  const { json, authorized } = helpers;
+  const { json } = helpers;
 
   if (method === "GET" && path === "/v1/voice/realtime") {
     return json({
       ok: true,
       plugin: "voice-realtime",
-      version: "8.9.0",
+      version: "8.10.0",
       websocket: "/v1/voice/ws",
       requires: ["ASTON_VOICE", "AI"],
       active: Boolean(env.ASTON_VOICE) && Boolean(env.AI),
@@ -307,9 +443,15 @@ export async function handleVoiceRealtime(request, env, path, method, url, cors,
         auth: { type: "auth", token: "<ASTON_API_TOKEN>" },
         text_turn: { type: "text", text: "Hola" },
         audio_turn: { type: "audio", audio_base64: "<wav/mp3 base64>" },
-        config: { type: "config", speaker: "luna", lang: "es", provider: "cloudflare" }
+        config: { type: "config", speaker: "luna", lang: "es", provider: "cloudflare", stream_tts: true }
       },
-      events_from_server: ["ready", "transcript", "reply", "audio", "status", "error", "pong"]
+      events_from_server: ["ready", "transcript", "reply", "reply_delta", "audio", "audio_chunk", "audio_end", "status", "error", "pong"],
+      streaming: {
+        default: true,
+        disable: { type: "config", stream_tts: false, stream_llm: false },
+        audio_chunk: { type: "audio_chunk", index: 0, total: 2, final: false, text: "sentence", audio_base64: "..." },
+        audio_end: { type: "audio_end", chunks: 2, mode: "stream" }
+      }
     }, 200, cors);
   }
 
