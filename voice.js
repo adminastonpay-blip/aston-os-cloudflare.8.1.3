@@ -1,5 +1,6 @@
+import { handleVoiceRealtime } from "./voice-realtime.js";
 import { handleVoiceClone } from "./voice-clone.js";
-// ASTON Voice plugin — Phase 1 (TTS / STT / voices) v8.7.0 + clone wire
+// ASTON Voice plugin — Phase 1–3 (TTS / STT / Clone / Realtime) v8.9.0
 const TTS_MODELS = {
   en: "@cf/deepgram/aura-2-en",
   es: "@cf/deepgram/aura-2-es",
@@ -63,7 +64,8 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       stt_model: STT_MODEL,
       voices: VOICES,
       clone_available: Boolean(env.ELEVENLABS_API_KEY),
-      note: "Aura-2 speakers; clones need ELEVENLABS_API_KEY; speaker=clone:<id> + provider=elevenlabs"
+      realtime: Boolean(env.ASTON_VOICE),
+      note: "Aura-2 speakers; clones need ELEVENLABS_API_KEY; WS at /v1/voice/ws"
     }, 200, cors);
   }
 
@@ -157,16 +159,9 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       await audit(env, auth.tenant, auth.actor, "voice.tts", `${model}:${speaker}:${id}`);
 
       const payload = {
-        ok: true,
-        plugin: "voice",
-        id,
-        model,
-        speaker,
-        lang,
-        content_type: contentType,
-        size_bytes: sizeBytes,
-        stored_in_r2: stored,
-        r2_key: stored ? r2Key : null
+        ok: true, plugin: "voice", id, model, speaker, lang,
+        content_type: contentType, size_bytes: sizeBytes,
+        stored_in_r2: stored, r2_key: stored ? r2Key : null
       };
       if (body?.return_base64 === true || body?.return_base64 === "true") {
         payload.audio_base64 = arrayBufferToBase64(bytes);
@@ -174,8 +169,7 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       return json(payload, 201, cors);
     } catch (e) {
       return json({
-        ok: false,
-        error: "tts_failed",
+        ok: false, error: "tts_failed",
         detail: String(e?.message || e).slice(0, 400),
         hint: "Check Workers AI Aura-2 model availability and speaker id"
       }, 502, cors);
@@ -223,8 +217,7 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       }
     } else {
       return json({
-        ok: false,
-        error: "unsupported_content_type",
+        ok: false, error: "unsupported_content_type",
         hint: "Use application/json {audio_base64} or multipart/audio body"
       }, 415, cors);
     }
@@ -243,16 +236,11 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       await audit(env, auth.tenant, auth.actor, "voice.stt", model);
 
       return json({
-        ok: true,
-        plugin: "voice",
-        model,
-        text: String(text),
-        language: language || null
+        ok: true, plugin: "voice", model, text: String(text), language: language || null
       }, 200, cors);
     } catch (e) {
       return json({
-        ok: false,
-        error: "stt_failed",
+        ok: false, error: "stt_failed",
         detail: String(e?.message || e).slice(0, 400),
         hint: "Check audio format (wav/mp3) and Workers AI Whisper availability"
       }, 502, cors);
@@ -262,6 +250,10 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
   {
     const cloneRes = await handleVoiceClone(request, env, path, method, url, cors, helpers);
     if (cloneRes) return cloneRes;
+  }
+  {
+    const rtRes = await handleVoiceRealtime(request, env, path, method, url, cors, helpers);
+    if (rtRes) return rtRes;
   }
   return null;
 }
