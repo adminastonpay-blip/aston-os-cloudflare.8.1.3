@@ -55,13 +55,14 @@ new_sqlite_classes = ["AstonVoiceSession"]
 [triggers]
 crons = ["0 * * * *"]
 
-# Vectorize — create the index ONCE in your Cloudflare account, then deploy:
+# Vectorize — index does NOT exist yet in this account (error 10159 on deploy).
+# Create ONCE, then uncomment the [[vectorize]] block and redeploy:
 #   npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
 #   npx wrangler vectorize create-metadata-index aston-omni-index --property-name=tenant --type=string
 #   npx wrangler vectorize create-metadata-index aston-omni-index --property-name=sector --type=string
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "aston-omni-index"
+# [[vectorize]]
+# binding = "VECTORIZE"
+# index_name = "aston-omni-index"
 
 # OPTIONAL — uncomment after creating the queue:
 #   npx wrangler queues create aston-global-queue
