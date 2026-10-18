@@ -1,6 +1,6 @@
 {
   "name": "aston-os",
-  "version": "8.12.1",
+  "version": "8.12.2",
   "private": true,
   "description": "ASTON OS — Edge AI Worker on Cloudflare",
   "type": "module",
