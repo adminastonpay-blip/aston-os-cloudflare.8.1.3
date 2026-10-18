@@ -1,4 +1,8 @@
-// ASTON Voice Clone — ElevenLabs IVC + speak (v8.8.0)
+// ASTON Voice Clone — ElevenLabs IVC + speak
+const DEFAULT_ELEVENLABS_VOICE_ID = "f804d1744d10a5d4c6e4c0988b6a9b749702bd6a1f9ffc7261bf5730f6a726a1";
+const ELEVENLABS_DEFAULT_MODEL = "eleven_multilingual_v2";
+const ELEVENLABS_OUTPUT_FORMAT = "mp3_44100_128";
+
 function arrayBufferToBase64(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = "";
@@ -152,7 +156,7 @@ export async function handleVoiceClone(request, env, path, method, url, cors, he
     }
     const provider = String(body?.provider || "cloudflare").toLowerCase();
     const speaker = String(body?.speaker || "luna");
-    if (provider === "elevenlabs" || speaker.startsWith("clone:")) {
+    if (provider === "elevenlabs" || speaker.startsWith("clone:") || speaker === "aston") {
       if (!env.ELEVENLABS_API_KEY) return json({ ok: false, error: "elevenlabs_key_required" }, 503, cors);
       let voiceId = body?.external_id || body?.voice_id;
       if (speaker.startsWith("clone:") && env.ASTON_DB) {
@@ -161,11 +165,16 @@ export async function handleVoiceClone(request, env, path, method, url, cors, he
         ).bind(speaker.slice(6), auth.tenant).first();
         if (row?.external_id) voiceId = row.external_id;
       }
+      if (!voiceId && (speaker === "aston" || speaker === "default" || provider === "elevenlabs")) {
+        voiceId = DEFAULT_ELEVENLABS_VOICE_ID;
+      }
       if (!voiceId) return json({ ok: false, error: "voice_id_required" }, 400, cors);
-      const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      const modelId = body?.model || body?.model_id || ELEVENLABS_DEFAULT_MODEL;
+      const outputFormat = body?.output_format || ELEVENLABS_OUTPUT_FORMAT;
+      const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${encodeURIComponent(outputFormat)}`, {
         method: "POST",
         headers: { "xi-api-key": env.ELEVENLABS_API_KEY, "content-type": "application/json", "accept": "audio/mpeg" },
-        body: JSON.stringify({ text: String(text).slice(0, 5000), model_id: body?.model || "eleven_multilingual_v2" })
+        body: JSON.stringify({ text: String(text).slice(0, 5000), model_id: modelId })
       });
       if (!elRes.ok) return json({ ok: false, error: "elevenlabs_tts_failed", detail: (await elRes.text()).slice(0, 300) }, 502, cors);
       const bytes = await elRes.arrayBuffer();
@@ -176,11 +185,11 @@ export async function handleVoiceClone(request, env, path, method, url, cors, he
         try { await env.ASTON_R2.put(r2Key, bytes, { httpMetadata: { contentType: "audio/mpeg" } }); stored = true; } catch (_) {}
       }
       if (typeof trackUsage === "function") await trackUsage(env, auth.tenant, "voice.tts", 1);
-      const payload = { ok: true, plugin: "voice", id, text: String(text).slice(0, 500), provider: "elevenlabs", voice_id: voiceId, size_bytes: bytes.byteLength, stored_in_r2: stored, r2_key: stored ? r2Key : null };
+      const payload = { ok: true, plugin: "voice", id, text: String(text).slice(0, 500), provider: "elevenlabs", voice_id: voiceId, model_id: modelId, size_bytes: bytes.byteLength, stored_in_r2: stored, r2_key: stored ? r2Key : null };
       if (body?.return_base64 === true || body?.return_base64 === "true") payload.audio_base64 = arrayBufferToBase64(bytes);
       return json(payload, 201, cors);
     }
-    return json({ ok: false, error: "use_tts_for_cloudflare", hint: "POST /v1/voice/tts for Aura speakers, or provider=elevenlabs for clones" }, 400, cors);
+    return json({ ok: false, error: "use_tts_for_cloudflare", hint: "POST /v1/voice/tts for Aura speakers, or provider=elevenlabs for default/clones" }, 400, cors);
   }
 
   return null;
