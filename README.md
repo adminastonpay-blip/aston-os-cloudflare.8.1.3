@@ -1,19 +1,38 @@
-# ASTON OS Omni-Core 8.6.0
+# ASTON OS
 
-## New in 8.6.0
+Edge AI Worker on Cloudflare (Workers, D1, R2, KV, Durable Objects, Workers AI).
 
-### A) Billing (usage + charge)
-- Auto-tracks `ai.chat`, `ai.image`, `agent.run` in the `usage` table
-- `GET /v1/billing/usage` — usage + estimated charge
-- `POST /v1/billing/charge` — posts charge to ledger (admin)
-- Prices (minor units): `PRICE_AI_CHAT_MINOR` (default 1), `PRICE_AI_IMAGE_MINOR` (10), `PRICE_AGENT_RUN_MINOR` (5), `BILLING_CURRENCY` (USD)
+**Brand:** ASTON OS only. No third-party clothing-store or legacy store names (no Leyni / Leyni Aston).
 
-### B) Commerce vertical (pilot)
-- `POST /v1/commerce/order` — create order (+ optional sales ledger credit)
-- `GET /v1/commerce/orders` — list orders
-- `POST /v1/commerce/support` — commerce support agent
-- `GET /v1/commerce/summary` — orders count + sales by currency
-- `POST /v1/commerce/webhook` — ingest commerce events
+## Version
+
+See `package.json` / `GET /` → `version`.
 
 ## Auth
-All billing/commerce routes need `Authorization: Bearer <ASTON_API_TOKEN>`.
+
+Protected routes need:
+
+```http
+Authorization: Bearer <ASTON_API_TOKEN>
+```
+
+Optional secret for voice:
+
+```bash
+npx wrangler secret put ELEVENLABS_API_KEY
+```
+
+## Main routes
+
+| Area | Paths |
+|------|--------|
+| Health | `GET /`, `GET /health` |
+| Plugins | `GET /v1/plugins` |
+| AI | `POST /v1/ai/chat`, `POST /v1/ai/image`, `POST /v1/ai/video` |
+| Voice | `POST /v1/voice/tts`, `POST /v1/voice/stt`, `POST /v1/voice/speak` |
+| Academy | `GET /academy/courses`, `POST /academy/enroll` |
+| Agent | `POST /v1/agent/run` |
+
+## Deploy note
+
+Do **not** bind Vectorize until the index exists, or remove the `VECTORIZE` binding from the Cloudflare dashboard if the index is missing.
