@@ -1,7 +1,8 @@
 {
-  "name": "aston-omni-core",
-  "version": "8.12.0",
+  "name": "aston-os",
+  "version": "8.12.1",
   "private": true,
+  "description": "ASTON OS — Edge AI Worker on Cloudflare",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
