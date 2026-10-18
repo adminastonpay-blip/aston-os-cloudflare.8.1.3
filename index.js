@@ -6,12 +6,19 @@ const SECTORS = new Set([
   "govtech", "health", "mobility", "media"
 ]);
 
-const VERSION = "8.12.1";
+const VERSION = "8.12.2";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", ...headers }
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "no-referrer",
+      "x-aston-os": "8.12.2",
+      ...headers
+    }
   });
 
 function corsHeaders(request, env) {
@@ -122,17 +129,17 @@ function detectCapabilities(env) {
 }
 
 const PLUGIN_DEFINITIONS = [
-  { id: "core", name: "ASTON Core", version: "8.12.1", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
-  { id: "session", name: "Session (Durable Object)", version: "8.12.1", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
-  { id: "ai-chat", name: "Workers AI Chat", version: "8.12.1", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
-  { id: "ai-image", name: "Workers AI Image Generation", version: "8.12.1", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
-  { id: "ai-video", name: "Workers AI Video Generation", version: "8.12.1", description: "Text-to-video and image-to-video (Wan)", requires: ["AI"], routes: ["POST /v1/ai/video", "GET /v1/ai/video/models"] },
-  { id: "media", name: "Media Library", version: "8.12.1", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
-  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.12.1", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
-  { id: "jobs", name: "Background Jobs (Queues)", version: "8.12.1", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
-  { id: "agent", name: "Agent Runtime", version: "8.12.1", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
-  { id: "voice", name: "Voice (TTS/STT/Clone/Realtime/Stream)", version: "8.12.1", description: "TTS/STT, clone, WebSocket agent, streaming TTS chunks", requires: ["AI"], routes: ["GET /v1/voice/voices", "POST /v1/voice/tts", "POST /v1/voice/stt", "POST /v1/voice/clone", "GET /v1/voice/clones", "POST /v1/voice/speak", "GET /v1/voice/realtime", "WS /v1/voice/ws"] },
-  { id: "academy", name: "Edge AI Academy", version: "8.12.1", description: "Courses, enrollment, progress for Shopify Academy UI", requires: ["ASTON_DB"], routes: ["GET /academy/courses", "GET /academy/courses/:id", "POST /academy/enroll", "GET /academy/me/progress", "POST /academy/me/progress", "GET /academy/me/enrollments"] }
+  { id: "core", name: "ASTON Core", version: "8.12.2", description: "Health, records, ledger, audit, stats, jobs list", requires: [], routes: ["GET /", "GET /health", "GET /v1/plugins", "GET|POST /v1/records/:sector", "POST /v1/ingest/:sector", "POST /v1/search", "POST /v1/ledger", "GET /v1/audit", "GET /v1/stats", "POST /v1/diagnostics/storage", "GET /v1/jobs"] },
+  { id: "session", name: "Session (Durable Object)", version: "8.12.2", description: "Tenant sessions", requires: ["ASTON_SESSION"], routes: ["GET|POST|DELETE /v1/session"] },
+  { id: "ai-chat", name: "Workers AI Chat", version: "8.12.2", description: "Text generation", requires: ["AI"], routes: ["POST /v1/ai/chat"] },
+  { id: "ai-image", name: "Workers AI Image Generation", version: "8.12.2", description: "Image generation + R2", requires: ["AI"], routes: ["POST /v1/ai/image"] },
+  { id: "ai-video", name: "Workers AI Video Generation", version: "8.12.2", description: "Text-to-video and image-to-video (Wan)", requires: ["AI"], routes: ["POST /v1/ai/video", "GET /v1/ai/video/models"] },
+  { id: "media", name: "Media Library", version: "8.12.2", description: "List media", requires: ["ASTON_DB"], routes: ["GET /v1/media"] },
+  { id: "semantic-search", name: "Semantic Search (Vectorize)", version: "8.12.2", description: "Embeddings + vector retrieval", requires: ["AI", "VECTORIZE"], routes: ["POST /v1/search/semantic", "POST /v1/embed/reindex"] },
+  { id: "jobs", name: "Background Jobs (Queues)", version: "8.12.2", description: "Async jobs", requires: ["ASTON_QUEUE"], routes: ["POST /v1/jobs"] },
+  { id: "agent", name: "Agent Runtime", version: "8.12.2", description: "Per-tenant AI agent with tools and traces", requires: ["ASTON_AGENT", "AI"], routes: ["POST /v1/agent/run", "GET /v1/agent/memory", "GET /v1/agent/traces"] },
+  { id: "voice", name: "Voice (TTS/STT/Clone/Realtime/Stream)", version: "8.12.2", description: "TTS/STT, clone, WebSocket agent, streaming TTS chunks", requires: ["AI"], routes: ["GET /v1/voice/voices", "POST /v1/voice/tts", "POST /v1/voice/stt", "POST /v1/voice/clone", "GET /v1/voice/clones", "POST /v1/voice/speak", "GET /v1/voice/realtime", "WS /v1/voice/ws"] },
+  { id: "academy", name: "Edge AI Academy", version: "8.12.2", description: "Courses, enrollment, progress for Shopify Academy UI", requires: ["ASTON_DB"], routes: ["GET /academy/courses", "GET /academy/courses/:id", "POST /academy/enroll", "GET /academy/me/progress", "POST /academy/me/progress", "GET /academy/me/enrollments"] }
 ];
 
 function isPluginActive(plugin, env) {
@@ -199,10 +206,23 @@ async function handle(request, env, ctx) {
     const caps = detectCapabilities(env);
     const plugins = listPlugins(env);
     const result = {
-      ok: true, service: "ASTON OS", version: VERSION, runtime: "cloudflare-workers",
+      ok: true,
+      service: "ASTON OS",
+      brand: "ASTON OS",
+      version: VERSION,
+      runtime: "cloudflare-workers",
       capabilities: caps,
-      plugins: { total: plugins.length, active: plugins.filter(p => p.active).length, list: plugins.map(p => ({ id: p.id, name: p.name, active: p.active })) },
-      checks: { worker: true, ...caps }
+      plugins: {
+        total: plugins.length,
+        active: plugins.filter(p => p.active).length,
+        list: plugins.map(p => ({ id: p.id, name: p.name, active: p.active }))
+      },
+      checks: { worker: true, ...caps },
+      deploy_safe: {
+        vectorize_bound: Boolean(env.VECTORIZE),
+        queue_bound: Boolean(env.ASTON_QUEUE),
+        note: "VECTORIZE/QUEUE omitted from wrangler until resources exist (avoids error 10159)"
+      }
     };
     if (url.searchParams.get("deep") === "1" && env.ASTON_DB) {
       try { await ensureSchema(env.ASTON_DB); await env.ASTON_DB.prepare("SELECT 1 AS ok").first(); result.checks.d1_query = true; }
@@ -533,8 +553,12 @@ async function handle(request, env, ctx) {
     await runCheck("kv", async () => { if (!env.ASTON_KV) throw new Error("KV unavailable"); const key = `v:${crypto.randomUUID()}`; await env.ASTON_KV.put(key, "1", { expirationTtl: 60 }); await env.ASTON_KV.delete(key); return { ok: true }; });
     await runCheck("r2", async () => { if (!env.ASTON_R2) throw new Error("R2 unavailable"); const key = `v/${crypto.randomUUID()}.txt`; await env.ASTON_R2.put(key, "ok"); await env.ASTON_R2.delete(key); return { ok: true }; });
     await runCheck("ai", async () => { if (!env.AI) throw new Error("AI unavailable"); return { bound: true }; });
-    await runCheck("vectorize", async () => { if (!env.VECTORIZE) throw new Error("VECTORIZE unavailable"); return { bound: true }; });
-    const ok = Object.values(checks).every(c => c.ok === true);
+    await runCheck("vectorize", async () => {
+      if (!env.VECTORIZE) return { bound: false, optional: true, hint: "Create index then bind — not required for core deploy" };
+      return { bound: true };
+    });
+    const coreKeys = ["d1", "kv", "r2", "ai"];
+    const ok = coreKeys.every(k => !checks[k] || checks[k].ok === true);
     await audit(env, auth.tenant, auth.actor, "storage.diagnostics", JSON.stringify(checks));
     return json({ ok, service: "ASTON OS", version: VERSION, diagnostics: checks, timestamp: new Date().toISOString() }, ok ? 200 : 503, cors);
   }
