@@ -1,6 +1,6 @@
 import { handleVoiceRealtime } from "./voice-realtime.js";
 import { handleVoiceClone } from "./voice-clone.js";
-// ASTON Voice plugin — Phase 1–3 (TTS / STT / Clone / Realtime) v8.9.0
+// ASTON Voice plugin — TTS / STT / Clone / Realtime + ElevenLabs default voice
 const TTS_MODELS = {
   en: "@cf/deepgram/aura-2-en",
   es: "@cf/deepgram/aura-2-es",
@@ -8,6 +8,11 @@ const TTS_MODELS = {
 };
 
 const STT_MODEL = "@cf/openai/whisper-large-v3-turbo";
+
+// Default ElevenLabs voice (account-configured). Secret: wrangler secret put ELEVENLABS_API_KEY
+const DEFAULT_ELEVENLABS_VOICE_ID = "f804d1744d10a5d4c6e4c0988b6a9b749702bd6a1f9ffc7261bf5730f6a726a1";
+const ELEVENLABS_DEFAULT_MODEL = "eleven_multilingual_v2";
+const ELEVENLABS_OUTPUT_FORMAT = "mp3_44100_128";
 
 const VOICES = [
   { id: "luna", name: "Luna", gender: "female", langs: ["en"] },
@@ -63,9 +68,17 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
       tts_models: TTS_MODELS,
       stt_model: STT_MODEL,
       voices: VOICES,
+      elevenlabs: {
+        available: Boolean(env.ELEVENLABS_API_KEY),
+        default_voice_id: DEFAULT_ELEVENLABS_VOICE_ID,
+        default_model: ELEVENLABS_DEFAULT_MODEL,
+        output_format: ELEVENLABS_OUTPUT_FORMAT,
+        speaker_alias: "aston",
+        usage: 'POST /v1/voice/tts { "provider":"elevenlabs", "text":"...", "return_base64": true }'
+      },
       clone_available: Boolean(env.ELEVENLABS_API_KEY),
       realtime: Boolean(env.ASTON_VOICE),
-      note: "Aura-2 speakers; clones need ELEVENLABS_API_KEY; WS at /v1/voice/ws"
+      note: "Aura-2 via provider cloudflare; ElevenLabs via provider elevenlabs (default voice preconfigured)"
     }, 200, cors);
   }
 
@@ -76,8 +89,8 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
     const body = await readJson(request);
     const provider = String(body?.provider || "cloudflare").toLowerCase();
     const speakerEarly = String(body?.speaker || body?.voice || "luna");
-    if (provider === "elevenlabs" || speakerEarly.startsWith("clone:")) {
-      if (!env.ELEVENLABS_API_KEY) return json({ ok: false, error: "elevenlabs_key_required" }, 503, cors);
+    if (provider === "elevenlabs" || speakerEarly.startsWith("clone:") || speakerEarly === "aston") {
+      if (!env.ELEVENLABS_API_KEY) return json({ ok: false, error: "elevenlabs_key_required", hint: "wrangler secret put ELEVENLABS_API_KEY" }, 503, cors);
       const textEl = typeof body?.text === "string" ? body.text.trim() : "";
       if (!textEl) return json({ ok: false, error: "text_required" }, 400, cors);
       let voiceId = body?.external_id || body?.voice_id;
@@ -87,12 +100,17 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
           if (row?.external_id) voiceId = row.external_id;
         } catch (_) {}
       }
+      if (!voiceId && (speakerEarly === "aston" || speakerEarly === "default" || provider === "elevenlabs")) {
+        voiceId = DEFAULT_ELEVENLABS_VOICE_ID;
+      }
       if (!voiceId) return json({ ok: false, error: "voice_id_or_clone_required" }, 400, cors);
       try {
-        const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        const modelId = body?.model || body?.model_id || ELEVENLABS_DEFAULT_MODEL;
+        const outputFormat = body?.output_format || ELEVENLABS_OUTPUT_FORMAT;
+        const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${encodeURIComponent(outputFormat)}`, {
           method: "POST",
           headers: { "xi-api-key": env.ELEVENLABS_API_KEY, "content-type": "application/json", "accept": "audio/mpeg" },
-          body: JSON.stringify({ text: textEl.slice(0, 5000), model_id: body?.model || "eleven_multilingual_v2" })
+          body: JSON.stringify({ text: textEl.slice(0, 5000), model_id: modelId })
         });
         if (!elRes.ok) return json({ ok: false, error: "elevenlabs_tts_failed", detail: (await elRes.text()).slice(0, 400) }, 502, cors);
         const bytes = await elRes.arrayBuffer();
@@ -102,7 +120,7 @@ export async function handleVoice(request, env, path, method, url, cors, helpers
         if (env.ASTON_R2) { try { await env.ASTON_R2.put(r2Key, bytes, { httpMetadata: { contentType: "audio/mpeg" } }); stored = true; } catch (_) {} }
         if (typeof trackUsage === "function") await trackUsage(env, auth.tenant, "voice.tts", 1);
         await audit(env, auth.tenant, auth.actor, "voice.tts", `elevenlabs:${voiceId}`);
-        const payload = { ok: true, plugin: "voice", id, provider: "elevenlabs", voice_id: voiceId, size_bytes: bytes.byteLength, stored_in_r2: stored, r2_key: stored ? r2Key : null };
+        const payload = { ok: true, plugin: "voice", id, provider: "elevenlabs", voice_id: voiceId, model_id: modelId, output_format: outputFormat, size_bytes: bytes.byteLength, stored_in_r2: stored, r2_key: stored ? r2Key : null };
         if (body?.return_base64 === true || body?.return_base64 === "true") payload.audio_base64 = arrayBufferToBase64(bytes);
         return json(payload, 201, cors);
       } catch (e) {
