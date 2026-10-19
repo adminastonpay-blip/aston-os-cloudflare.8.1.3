@@ -11,3 +11,34 @@ CREATE TABLE IF NOT EXISTS plugins_state (plugin_id TEXT PRIMARY KEY, enabled IN
 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, payload TEXT, result TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs (tenant, created_at);
 CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL);
+
+-- Anti-Gap Phase 1
+CREATE TABLE IF NOT EXISTS roi_events (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  route TEXT NOT NULL,
+  model TEXT,
+  tokens_in INTEGER DEFAULT 0,
+  tokens_out INTEGER DEFAULT 0,
+  cost_usd_micros INTEGER DEFAULT 0,
+  latency_ms INTEGER,
+  outcome TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_roi_tenant_created ON roi_events (tenant_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_roi_tenant_route ON roi_events (tenant_id, route, created_at);
+CREATE TABLE IF NOT EXISTS tenant_budgets (
+  tenant_id TEXT PRIMARY KEY,
+  monthly_usd_micros INTEGER NOT NULL,
+  soft_limit_pct INTEGER DEFAULT 80,
+  hard_block INTEGER DEFAULT 0,
+  updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS export_jobs (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  r2_key TEXT,
+  created_at TEXT NOT NULL,
+  finished_at TEXT
+);
