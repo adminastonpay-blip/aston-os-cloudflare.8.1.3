@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phase 1–10 anti-gap (non-breaking).
+ * ASTON OS entry — Phase 1–11 anti-gap (non-breaking).
  * index.js is never modified. Deploy with wrangler main = entry.js
  */
 import core from "./index.js";
@@ -21,10 +21,14 @@ import { tryHandlePhase7, enrichHealthPhase7, runPhase7Cron } from "./anti-gap/p
 import { tryHandlePhase8, enrichHealthPhase8 } from "./anti-gap/phase8.js";
 import { tryHandlePhase9, enrichHealthPhase9 } from "./anti-gap/phase9.js";
 import { tryHandlePhase10, enrichHealthPhase10 } from "./anti-gap/phase10.js";
+import { tryHandlePhase11, enrichHealthPhase11 } from "./anti-gap/phase11.js";
 
 export default {
   async fetch(request, env, ctx) {
     try {
+      const p11 = await tryHandlePhase11(request, env, ctx);
+      if (p11) return p11;
+
       const p10 = await tryHandlePhase10(request, env, ctx);
       if (p10) return p10;
 
@@ -75,6 +79,7 @@ export default {
           enrichHealthPhase8(data, env);
           enrichHealthPhase9(data, env);
           enrichHealthPhase10(data, env);
+          enrichHealthPhase11(data, env);
           const headers = new Headers(res.headers);
           headers.set("content-type", "application/json; charset=utf-8");
           return new Response(JSON.stringify(data), { status: res.status, headers });
