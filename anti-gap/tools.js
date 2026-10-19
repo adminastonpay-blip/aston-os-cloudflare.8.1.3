@@ -1,6 +1,5 @@
 /**
- * Anti-Gap Phase 5 — built-in + tenant-registered tools
- * Safe defaults: no arbitrary code exec, scoped D1/KV, HTTP allowlist.
+ * Anti-Gap Phase 5/6 — built-in + tenant-registered tools
  */
 
 const TOOLS_PREFIX = "aston:tools:";
@@ -22,14 +21,14 @@ export const BUILTIN_TOOLS = {
       type: "object",
       properties: {
         url: { type: "string" },
-        max_bytes: { type: "number", description: "default 32000" }
+        max_bytes: { type: "number" }
       },
       required: ["url"]
     }
   },
   kv_get: {
     name: "kv_get",
-    description: "Read a tenant-scoped KV key (prefix auto-applied).",
+    description: "Read a tenant-scoped KV key.",
     parameters: {
       type: "object",
       properties: { key: { type: "string" } },
@@ -38,7 +37,7 @@ export const BUILTIN_TOOLS = {
   },
   kv_put: {
     name: "kv_put",
-    description: "Write a tenant-scoped KV key (max 8KB value).",
+    description: "Write a tenant-scoped KV key (max 8KB).",
     parameters: {
       type: "object",
       properties: {
@@ -61,6 +60,18 @@ export const BUILTIN_TOOLS = {
     name: "now_iso",
     description: "Return current UTC ISO timestamp.",
     parameters: { type: "object", properties: {} }
+  },
+  knowledge_search: {
+    name: "knowledge_search",
+    description: "Search the tenant knowledge base (RAG). Returns top matching text chunks.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        top_k: { type: "number" }
+      },
+      required: ["query"]
+    }
   }
 };
 
@@ -163,7 +174,7 @@ export async function executeTool(env, tenant, name, args, registry) {
         const res = await fetch(url, {
           method: "GET",
           signal: controller.signal,
-          headers: { "user-agent": "ASTON-OS-AntiGap/5" }
+          headers: { "user-agent": "ASTON-OS-AntiGap/6" }
         });
         clearTimeout(t);
         const buf = await res.arrayBuffer();
@@ -209,12 +220,32 @@ export async function executeTool(env, tenant, name, args, registry) {
         };
       }
 
+      case "knowledge_search": {
+        const { searchKnowledge } = await import("./rag.js");
+        const data = await searchKnowledge(env, tenant, a.query || a.q, a.top_k || a.topK || 5);
+        return {
+          ok: data.ok,
+          name: n,
+          result: data.ok
+            ? {
+                mode: data.mode,
+                results: (data.results || []).map((r) => ({
+                  score: r.score,
+                  text: r.text,
+                  doc_id: r.doc_id
+                }))
+              }
+            : { error: data.error },
+          error: data.ok ? undefined : data.error
+        };
+      }
+
       default:
         return {
           ok: false,
           name: n,
           error: "tool_not_executable",
-          hint: "Only built-in tools run on the worker; custom tools are prompt metadata"
+          hint: "Only built-in tools run on the worker"
         };
     }
   } catch (e) {
