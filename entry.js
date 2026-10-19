@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phase 1–6 anti-gap (non-breaking).
+ * ASTON OS entry — Phase 1–7 anti-gap (non-breaking).
  * index.js is never modified. Deploy with wrangler main = entry.js
  */
 import core from "./index.js";
@@ -17,10 +17,14 @@ import { tryHandlePhase3, enrichHealthPhase3, runPhase3Cron } from "./anti-gap/p
 import { tryHandlePhase4, enrichHealthPhase4, runPhase4Cron } from "./anti-gap/phase4.js";
 import { tryHandlePhase5, enrichHealthPhase5 } from "./anti-gap/phase5.js";
 import { tryHandlePhase6, enrichHealthPhase6 } from "./anti-gap/phase6.js";
+import { tryHandlePhase7, enrichHealthPhase7, runPhase7Cron } from "./anti-gap/phase7.js";
 
 export default {
   async fetch(request, env, ctx) {
     try {
+      const p7 = await tryHandlePhase7(request, env, ctx);
+      if (p7) return p7;
+
       const p6 = await tryHandlePhase6(request, env, ctx);
       if (p6) return p6;
 
@@ -55,6 +59,7 @@ export default {
           enrichHealthPhase4(data, env);
           enrichHealthPhase5(data, env);
           enrichHealthPhase6(data, env);
+          enrichHealthPhase7(data, env);
           const headers = new Headers(res.headers);
           headers.set("content-type", "application/json; charset=utf-8");
           return new Response(JSON.stringify(data), { status: res.status, headers });
@@ -76,6 +81,7 @@ export default {
     if (env.ANTI_GAP !== "false") {
       if (env.ANTI_GAP_P3 !== "false") ctx.waitUntil(runPhase3Cron(env));
       if (env.ANTI_GAP_P4 !== "false") ctx.waitUntil(runPhase4Cron(env));
+      if (env.ANTI_GAP_P7 !== "false") ctx.waitUntil(runPhase7Cron(env));
     }
     if (typeof core.scheduled === "function") {
       return core.scheduled(controller, env, ctx);
