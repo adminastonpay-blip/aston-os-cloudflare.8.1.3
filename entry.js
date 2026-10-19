@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — wraps core worker with Anti-Gap Phase 1 (non-breaking).
+ * ASTON OS entry — Phase 1 + Phase 2 anti-gap (non-breaking).
  * index.js is never modified. Deploy with wrangler main = entry.js
  */
 import core from "./index.js";
@@ -12,20 +12,29 @@ export {
 } from "./index.js";
 
 import { tryHandleAntiGapStandalone, enrichHealthResponse } from "./anti-gap/phase1.js";
+import { tryHandlePhase2, enrichHealthPhase2 } from "./anti-gap/phase2.js";
 
 export default {
   async fetch(request, env, ctx) {
     try {
+      const p2 = await tryHandlePhase2(request, env, ctx);
+      if (p2) return p2;
+
       const ag = await tryHandleAntiGapStandalone(request, env, ctx);
       if (ag) return ag;
 
       const url = new URL(request.url);
       const path = url.pathname.replace(/\/+$/, "") || "/";
-      if (request.method === "GET" && (path === "/" || path === "/health") && env.ANTI_GAP !== "false") {
+      if (
+        request.method === "GET" &&
+        (path === "/" || path === "/health") &&
+        env.ANTI_GAP !== "false"
+      ) {
         const res = await core.fetch(request, env, ctx);
         try {
           const data = await res.clone().json();
           await enrichHealthResponse(data, env, url);
+          enrichHealthPhase2(data, env);
           const headers = new Headers(res.headers);
           headers.set("content-type", "application/json; charset=utf-8");
           return new Response(JSON.stringify(data), { status: res.status, headers });
