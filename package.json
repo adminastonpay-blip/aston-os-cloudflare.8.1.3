@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "9.0.0",
+  "version": "9.1.0",
   "private": true,
-  "description": "ASTON OS 9.0.0 — Audit-ready Edge AI Worker on Cloudflare",
+  "description": "ASTON OS 9.1.0 — Core + Enterprise Live Audit / Growth / Trust / Compliance",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
