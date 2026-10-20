@@ -11,3 +11,44 @@ CREATE TABLE IF NOT EXISTS plugins_state (plugin_id TEXT PRIMARY KEY, enabled IN
 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, type TEXT NOT NULL, status TEXT NOT NULL, payload TEXT, result TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs (tenant, created_at);
 CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL);
+
+-- Enterprise 9.1.0 (Master Plan)
+CREATE TABLE IF NOT EXISTS tenant_plans (
+  tenant TEXT PRIMARY KEY,
+  plan TEXT NOT NULL,
+  shop_domain TEXT,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS live_audits (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  store_ref TEXT,
+  channels TEXT,
+  report TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_live_audits_tenant ON live_audits (tenant, created_at);
+CREATE TABLE IF NOT EXISTS supplier_audits (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  supplier_name TEXT NOT NULL,
+  country TEXT,
+  score REAL NOT NULL,
+  factors TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS carbon_entries (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  activity TEXT NOT NULL,
+  kg_co2e REAL NOT NULL,
+  meta TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS enterprise_events (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  payload TEXT,
+  created_at TEXT NOT NULL
+);
