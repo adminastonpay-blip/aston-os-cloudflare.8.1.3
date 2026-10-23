@@ -3,6 +3,12 @@ main = "index.js"
 compatibility_date = "2026-03-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Force module format (Workers Builds + Durable Objects)
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js"]
+fallthrough = true
+
 [observability]
 enabled = true
 
@@ -55,15 +61,4 @@ new_sqlite_classes = ["AstonVoiceSession"]
 [triggers]
 crons = ["0 * * * *"]
 
-# Vectorize is intentionally omitted.
-# The index aston-omni-index does not exist in this account and blocks deploy (error 10159).
-# After creating the index, add:
-# [[vectorize]]
-# binding = "VECTORIZE"
-# index_name = "aston-omni-index"
-#
-# Create index:
-#   npx wrangler vectorize create aston-omni-index --dimensions=768 --metric=cosine
-#
-# Queues also omitted until created:
-#   npx wrangler queues create aston-global-queue
+# Vectorize intentionally omitted until index exists (error 10159).
