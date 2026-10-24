@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phases A–D (Ontology, Orchestrator, Cases, Governance)
+ * ASTON OS entry — Phases A–F (full stack)
  */
 import core, {
   AstonSession,
@@ -17,6 +17,7 @@ import {
   hasScope,
   scopeForPath
 } from "./governance.js";
+import { handleFusion } from "./fusion.js";
 
 export {
   AstonSession,
@@ -38,7 +39,7 @@ function corsHeaders(request, env) {
   const allowed = env.ALLOWED_ORIGIN;
   const headers = {
     "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor",
+    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
     "access-control-max-age": "86400",
     "vary": "Origin"
   };
@@ -102,9 +103,7 @@ async function authorized(request, env, scope = "read") {
   }
   if (!auth) return null;
   auth = await enrichAuth(env, auth);
-  // Legacy single-scope check still accepted if listed; fine scopes checked per-route
   if (scope && !hasScope(auth, scope) && !hasScope(auth, "admin")) {
-    // allow if they have any fine-grained equivalent later via scopeForPath
     if (!["read", "write", "ai", "admin"].includes(scope)) return null;
   }
   return auth;
@@ -115,7 +114,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "9.5.0",
+      "x-aston-os": "9.7.0",
       ...headers
     }
   });
@@ -126,14 +125,20 @@ function isMounted(path) {
     path.startsWith("/v1/ontology") ||
     path.startsWith("/v1/orchestrator") ||
     path.startsWith("/v1/cases") ||
-    path.startsWith("/v1/governance")
+    path.startsWith("/v1/governance") ||
+    path.startsWith("/v1/fusion")
   );
 }
 
-async function gate(request, env, path, method, cors) {
+function fusionScope(path, method) {
+  if (method === "GET") return ["read", "admin"];
+  return ["write", "admin"];
+}
+
+async function gate(request, env, path, method, cors, scopeOverride) {
   const auth = await authorized(request, env, "read");
   if (!auth) return { error: json({ ok: false, error: "unauthorized" }, 401, cors) };
-  const needed = scopeForPath(path, method);
+  const needed = scopeOverride || scopeForPath(path, method);
   if (!hasScope(auth, needed)) {
     return {
       error: json({
@@ -180,6 +185,12 @@ export default {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
       return handleGovernance(request, env, g.auth, cors);
+    }
+
+    if (path.startsWith("/v1/fusion")) {
+      const g = await gate(request, env, path, method, cors, fusionScope(path, method));
+      if (g.error) return g.error;
+      return handleFusion(request, env, g.auth, cors);
     }
 
     return core.fetch(request, env, ctx);

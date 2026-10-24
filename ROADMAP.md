@@ -1,12 +1,17 @@
-# ASTON OS — Roadmap
+# ASTON OS — Roadmap COMPLETE (A–F)
 
-## A–E completas en ramas de fase
-- A Ontology ✅
-- B Orchestrator ✅
-- C Cases ✅
-- D Governance ✅
-- E Voice unificado ✅ (`voice-tools.js` + `voice-realtime.js` 9.6.0)
+| Phase | Capability | Status |
+|-------|------------|--------|
+| A | Ontology graph | ✅ |
+| B | Multi-agent orchestrator | ✅ |
+| C | Cases & playbooks | ✅ |
+| D | Governance (scopes, lineage, audit export) | ✅ |
+| E | Voice + tools unified | ✅ |
+| F | Data fusion (JSON/CSV/Shopify → ontology) | ✅ |
 
-## Fase F — Data fusion
-- Conectores Shopify / CSV / webhooks
-- Sync → ontology + Vectorize
+## Canonical branch for full stack
+`phase-f-fusion` → merge to `main` as **v9.7.0**
+
+```bash
+npm run db:init && npx wrangler deploy
+```
