@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phase A Ontology + B Orchestrator + C Cases
+ * ASTON OS entry — Phases A–D (Ontology, Orchestrator, Cases, Governance)
  */
 import core, {
   AstonSession,
@@ -11,6 +11,12 @@ import core, {
 import { handleOntology, AstonOntology } from "./ontology.js";
 import { handleOrchestrator, AstonOrchestrator } from "./orchestrator.js";
 import { handleCases } from "./cases.js";
+import {
+  handleGovernance,
+  enrichAuth,
+  hasScope,
+  scopeForPath
+} from "./governance.js";
 
 export {
   AstonSession,
@@ -32,7 +38,7 @@ function corsHeaders(request, env) {
   const allowed = env.ALLOWED_ORIGIN;
   const headers = {
     "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant",
+    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor",
     "access-control-max-age": "86400",
     "vary": "Origin"
   };
@@ -49,49 +55,59 @@ function corsHeaders(request, env) {
 async function authorized(request, env, scope = "read") {
   const token = bearer(request);
   if (!token) return null;
+  let auth = null;
   if (env.ASTON_API_TOKEN && token === env.ASTON_API_TOKEN) {
-    return {
+    auth = {
       tenant: request.headers.get("X-Tenant") || "default",
       scopes: ["read", "write", "ai", "admin"],
-      actor: "api-token"
+      actor: request.headers.get("X-Aston-Actor") || request.headers.get("X-Actor") || "api-token"
     };
+  } else if (env.ASTON_JWT_SECRET) {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      try {
+        const decode = (s) => JSON.parse(atob(s.replace(/-/g, "+").replace(/_/g, "/")));
+        const header = decode(parts[0]);
+        const payload = decode(parts[1]);
+        if (header.alg === "HS256" && payload.exp && payload.exp > Math.floor(Date.now() / 1000)) {
+          const key = await crypto.subtle.importKey(
+            "raw",
+            new TextEncoder().encode(env.ASTON_JWT_SECRET),
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["verify"]
+          );
+          const signature = Uint8Array.from(
+            atob(parts[2].replace(/-/g, "+").replace(/_/g, "/")),
+            (c) => c.charCodeAt(0)
+          );
+          const valid = await crypto.subtle.verify(
+            "HMAC",
+            key,
+            signature,
+            new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
+          );
+          if (valid) {
+            auth = {
+              tenant: String(payload.tenant || "default"),
+              scopes: Array.isArray(payload.scopes) ? payload.scopes : ["read"],
+              actor: String(payload.sub || "jwt")
+            };
+          }
+        }
+      } catch {
+        auth = null;
+      }
+    }
   }
-  if (!env.ASTON_JWT_SECRET) return null;
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  try {
-    const decode = (s) => JSON.parse(atob(s.replace(/-/g, "+").replace(/_/g, "/")));
-    const header = decode(parts[0]);
-    const payload = decode(parts[1]);
-    if (header.alg !== "HS256" || !payload.exp || payload.exp <= Math.floor(Date.now() / 1000)) return null;
-    const key = await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(env.ASTON_JWT_SECRET),
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
-    const signature = Uint8Array.from(
-      atob(parts[2].replace(/-/g, "+").replace(/_/g, "/")),
-      (c) => c.charCodeAt(0)
-    );
-    const valid = await crypto.subtle.verify(
-      "HMAC",
-      key,
-      signature,
-      new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
-    );
-    if (!valid) return null;
-    const scopes = Array.isArray(payload.scopes) ? payload.scopes : [];
-    if (!scopes.includes(scope) && !scopes.includes("admin")) return null;
-    return {
-      tenant: String(payload.tenant || "default"),
-      scopes,
-      actor: String(payload.sub || "jwt")
-    };
-  } catch {
-    return null;
+  if (!auth) return null;
+  auth = await enrichAuth(env, auth);
+  // Legacy single-scope check still accepted if listed; fine scopes checked per-route
+  if (scope && !hasScope(auth, scope) && !hasScope(auth, "admin")) {
+    // allow if they have any fine-grained equivalent later via scopeForPath
+    if (!["read", "write", "ai", "admin"].includes(scope)) return null;
   }
+  return auth;
 }
 
 function json(data, status = 200, headers = {}) {
@@ -99,7 +115,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "9.4.0",
+      "x-aston-os": "9.5.0",
       ...headers
     }
   });
@@ -109,8 +125,26 @@ function isMounted(path) {
   return (
     path.startsWith("/v1/ontology") ||
     path.startsWith("/v1/orchestrator") ||
-    path.startsWith("/v1/cases")
+    path.startsWith("/v1/cases") ||
+    path.startsWith("/v1/governance")
   );
+}
+
+async function gate(request, env, path, method, cors) {
+  const auth = await authorized(request, env, "read");
+  if (!auth) return { error: json({ ok: false, error: "unauthorized" }, 401, cors) };
+  const needed = scopeForPath(path, method);
+  if (!hasScope(auth, needed)) {
+    return {
+      error: json({
+        ok: false,
+        error: "forbidden",
+        required_scope: needed,
+        actor_scopes: auth.scopes
+      }, 403, cors)
+    };
+  }
+  return { auth };
 }
 
 export default {
@@ -125,21 +159,27 @@ export default {
     }
 
     if (path.startsWith("/v1/ontology")) {
-      const auth = await authorized(request, env, method === "GET" ? "read" : "write");
-      if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
-      return handleOntology(request, env, auth, cors);
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return handleOntology(request, env, g.auth, cors);
     }
 
     if (path.startsWith("/v1/orchestrator")) {
-      const auth = await authorized(request, env, method === "GET" ? "read" : "ai");
-      if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
-      return handleOrchestrator(request, env, auth, cors);
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return handleOrchestrator(request, env, g.auth, cors);
     }
 
     if (path.startsWith("/v1/cases")) {
-      const auth = await authorized(request, env, method === "GET" ? "read" : "write");
-      if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
-      return handleCases(request, env, auth, cors);
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return handleCases(request, env, g.auth, cors);
+    }
+
+    if (path.startsWith("/v1/governance")) {
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return handleGovernance(request, env, g.auth, cors);
     }
 
     return core.fetch(request, env, ctx);

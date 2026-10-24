@@ -1,16 +1,16 @@
 # ASTON OS — Roadmap
 
-## Fase A — Ontology ✅
-## Fase B — Orchestrator ✅
-## Fase C — Cases / playbooks ✅ (esta rama)
-- [x] Tablas `cases` + `case_events`
-- [x] Playbooks store_audit, supplier_risk, ledger_anomaly, ontology_alert
-- [x] Transiciones de estado + timeline
-- [x] Webhooks case.created / case.status_changed
-- [x] Integración opcional con orchestrator
+## A Ontology ✅  B Orchestrator ✅  C Cases ✅  D Governance ✅
 
-## Fase D — Gobernanza
-- Scopes, RLS, lineage, export audit
+### Phase D delivered
+- Scopes + role presets
+- tenant_actors (actor-level permissions)
+- lineage table + API
+- audit export → R2
+- worker gate by scopeForPath
 
 ## Fase E — Voice unificado
+- Voice session tools → ontology / cases / orchestrator
+
 ## Fase F — Data fusion
+- Conectores → ontology + Vectorize
