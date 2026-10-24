@@ -52,3 +52,28 @@ CREATE TABLE IF NOT EXISTS enterprise_events (
   payload TEXT,
   created_at TEXT NOT NULL
 );
+
+-- Phase A: Ontology (Palantir-class knowledge layer)
+CREATE TABLE IF NOT EXISTS ontology_entities (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  props TEXT,
+  source TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ont_ent_tenant ON ontology_entities (tenant, type, updated_at);
+CREATE INDEX IF NOT EXISTS idx_ont_ent_name ON ontology_entities (tenant, name);
+CREATE TABLE IF NOT EXISTS ontology_relations (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  rel_type TEXT NOT NULL,
+  from_id TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  props TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ont_rel_from ON ontology_relations (tenant, from_id, rel_type);
+CREATE INDEX IF NOT EXISTS idx_ont_rel_to ON ontology_relations (tenant, to_id, rel_type);
