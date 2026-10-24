@@ -8,5 +8,6 @@ export {
   AstonRateLimiter,
   AstonLedgerLock,
   AstonAgent,
-  AstonVoiceSession
+  AstonVoiceSession,
+  AstonOntology
 } from "./index.js";
