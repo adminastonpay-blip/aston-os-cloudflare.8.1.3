@@ -92,3 +92,32 @@ CREATE TABLE IF NOT EXISTS orchestrator_runs (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_orch_runs_tenant ON orchestrator_runs (tenant, created_at);
+
+-- Phase C: Cases & playbooks
+CREATE TABLE IF NOT EXISTS cases (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  title TEXT NOT NULL,
+  playbook TEXT,
+  status TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  assignee TEXT,
+  ontology_ids TEXT,
+  payload TEXT,
+  result TEXT,
+  orchestrator_run_id TEXT,
+  created_by TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cases_tenant ON cases (tenant, status, updated_at);
+CREATE TABLE IF NOT EXISTS case_events (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL,
+  tenant TEXT NOT NULL,
+  event TEXT NOT NULL,
+  detail TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_events ON case_events (tenant, case_id, created_at);
