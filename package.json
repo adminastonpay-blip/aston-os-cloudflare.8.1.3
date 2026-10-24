@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.4.0",
+  "version": "10.5.0",
   "private": true,
-  "description": "ASTON OS 10.4.0 — PoV demo kit",
+  "description": "ASTON OS 10.5.0 — Graph UI + PoV kit",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

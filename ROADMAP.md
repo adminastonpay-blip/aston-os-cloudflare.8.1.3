@@ -1,10 +1,10 @@
 # ASTON OS — Roadmap
 
-## Done on branches (merge pending)
-A–G · H Receipts · I Metrics · J UI · **K PoV kit (v10.4.0)**
+## Branch tip
+`phase-l-graph-ui` = H Receipts + I Metrics + J UI + K PoV + **L Graph (v10.5.0)**
 
-## Outside code
-1. Merge `phase-k-pov-kit` → main
-2. Cloudflare deploy + secrets
-3. Live PoV with a real tenant
-4. Provisional patents (legal)
+## Critical path now
+1. Merge → main
+2. Deploy Cloudflare
+3. `/ui` + `POST /v1/pov/demo`
+4. Patents/legal outside repo
