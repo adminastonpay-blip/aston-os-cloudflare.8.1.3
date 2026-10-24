@@ -1,10 +1,9 @@
 # ASTON OS — Roadmap
 
-## Done on Worker
-A Ontology · B Orchestrator · C Cases · D Governance · E Voice · F Fusion · **G Foundry core**
+## Worker
+A–G Foundry · H Truth Receipts · **I Edge Metrics (v10.2.0)**
 
-## Outside Worker (required for true Palantir parity)
-- Workshop UI (graph + cases + object views)
-- Continuous connectors at scale
-- SSO / compliance certifications
-- Customer deployment teams
+## Next
+- Merge H+I → deploy
+- UI dashboard (fuera o estático)
+- PoV + legal patents
