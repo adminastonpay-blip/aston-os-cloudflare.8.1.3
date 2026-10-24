@@ -1,7 +1,8 @@
-// ASTON OS — Phase B Multi-Agent Orchestrator
-// Plan → specialist agents → synthesize (Palantir-style operational workflow on the edge)
+// ASTON OS — Phase B Multi-Agent Orchestrator (+ Phase H Truth Receipts)
+// Plan → specialist agents → synthesize → signed receipt
 
 import { ontologyToolSearch, ontologyToolTraverse } from "./ontology.js";
+import { issueTruthReceipt } from "./receipts.js";
 
 const ROLES = {
   analyst: {
@@ -29,7 +30,7 @@ const ROLES = {
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "x-aston-os": "9.3.0", ...headers }
+    headers: { "content-type": "application/json; charset=utf-8", "x-aston-os": "10.1.0", ...headers }
   });
 
 async function readJson(request) {
@@ -38,18 +39,7 @@ async function readJson(request) {
 
 export async function ensureOrchestratorSchema(db) {
   await db.batch([
-    db.prepare(`CREATE TABLE IF NOT EXISTS orchestrator_runs (
-      id TEXT PRIMARY KEY,
-      tenant TEXT NOT NULL,
-      goal TEXT NOT NULL,
-      status TEXT NOT NULL,
-      plan TEXT,
-      result TEXT,
-      error TEXT,
-      actor TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS orchestrator_runs (\n      id TEXT PRIMARY KEY,\n      tenant TEXT NOT NULL,\n      goal TEXT NOT NULL,\n      status TEXT NOT NULL,\n      plan TEXT,\n      result TEXT,\n      error TEXT,\n      actor TEXT,\n      created_at TEXT NOT NULL,\n      updated_at TEXT NOT NULL\n    )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_orch_runs_tenant ON orchestrator_runs (tenant, created_at)")
   ]);
 }
@@ -167,7 +157,6 @@ async function maybeStoreArtifact(env, tenant, runId, result) {
   }
 }
 
-/** HTTP handler /v1/orchestrator/* */
 export async function handleOrchestrator(request, env, auth, cors = {}) {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -211,7 +200,6 @@ export async function handleOrchestrator(request, env, auth, cors = {}) {
       const goal = String(body?.goal || body?.prompt || "").trim();
       if (!goal) return json({ ok: false, error: "goal_required" }, 400, cors);
 
-      // Prefer DO when bound (shared memory + sequential control)
       if (env.ASTON_ORCHESTRATOR) {
         const stub = env.ASTON_ORCHESTRATOR.get(
           env.ASTON_ORCHESTRATOR.idFromName(`orch:${tenant}`)
@@ -232,7 +220,6 @@ export async function handleOrchestrator(request, env, auth, cors = {}) {
         }));
       }
 
-      // Inline fallback without DO
       const runId = crypto.randomUUID();
       const now = new Date().toISOString();
       const roles = pickRoles(goal, body?.roles).slice(0, Math.min(4, Number(body?.max_roles) || 3));
@@ -261,6 +248,20 @@ export async function handleOrchestrator(request, env, auth, cors = {}) {
         result: finalText, error: null, actor: auth.actor, created_at: now, updated_at: updated
       });
 
+      let receipt = null;
+      try {
+        receipt = await issueTruthReceipt(env, {
+          tenant,
+          kind: "orchestrator.run",
+          subject_id: runId,
+          actor: auth.actor || "orchestrator",
+          decision: String(finalText || "").slice(0, 1500),
+          summary: String(goal || "").slice(0, 300),
+          input: { goal, roles },
+          output: { result: finalText, steps: stepResults }
+        });
+      } catch (re) { console.error("receipt", re?.message || re); }
+
       return json({
         ok: true,
         phase: "B",
@@ -269,6 +270,7 @@ export async function handleOrchestrator(request, env, auth, cors = {}) {
         steps: stepResults,
         result: finalText,
         artifact_key: artifact,
+        truth_receipt: receipt,
         total_ms: Date.now() - t0
       }, 200, cors);
     }
@@ -280,7 +282,6 @@ export async function handleOrchestrator(request, env, auth, cors = {}) {
   }
 }
 
-/** Durable Object — per-tenant orchestrator memory + run control */
 export class AstonOrchestrator {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -345,6 +346,20 @@ export class AstonOrchestrator {
           actor, created_at: now, updated_at: new Date().toISOString()
         });
 
+        let receipt = null;
+        try {
+          receipt = await issueTruthReceipt(this.env, {
+            tenant,
+            kind: "orchestrator.run",
+            subject_id: runId,
+            actor: actor || "orchestrator",
+            decision: String(finalText || "").slice(0, 1500),
+            summary: String(goal || "").slice(0, 300),
+            input: { goal, roles },
+            output: { result: finalText, steps: stepResults }
+          });
+        } catch (re) { console.error("receipt", re?.message || re); }
+
         return json({
           ok: true,
           phase: "B",
@@ -353,6 +368,7 @@ export class AstonOrchestrator {
           steps: stepResults,
           result: finalText,
           artifact_key: artifact,
+          truth_receipt: receipt,
           total_ms: Date.now() - t0
         });
       } catch (e) {
