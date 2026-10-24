@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "private": true,
-  "description": "ASTON OS 9.2.0 — Phase A Ontology + Core + Enterprise",
+  "description": "ASTON OS 9.3.0 — Phase A Ontology + Phase B Multi-Agent Orchestrator",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

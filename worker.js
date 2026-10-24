@@ -1,6 +1,5 @@
 /**
- * ASTON OS entry — module format for Durable Objects + Phase A ontology routes.
- * Ontology is mounted here so index.js stays stable until full merge of 9.2.0 wiring.
+ * ASTON OS entry — Phase A Ontology + Phase B Orchestrator mounted at the edge.
  */
 import core, {
   AstonSession,
@@ -10,6 +9,7 @@ import core, {
   AstonVoiceSession
 } from "./index.js";
 import { handleOntology, AstonOntology } from "./ontology.js";
+import { handleOrchestrator, AstonOrchestrator } from "./orchestrator.js";
 
 export {
   AstonSession,
@@ -17,7 +17,8 @@ export {
   AstonLedgerLock,
   AstonAgent,
   AstonVoiceSession,
-  AstonOntology
+  AstonOntology,
+  AstonOrchestrator
 };
 
 function bearer(request) {
@@ -97,10 +98,14 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "9.2.0",
+      "x-aston-os": "9.3.0",
       ...headers
     }
   });
+}
+
+function isMounted(path) {
+  return path.startsWith("/v1/ontology") || path.startsWith("/v1/orchestrator");
 }
 
 export default {
@@ -110,7 +115,7 @@ export default {
     const method = request.method.toUpperCase();
     const cors = corsHeaders(request, env);
 
-    if (method === "OPTIONS" && path.startsWith("/v1/ontology")) {
+    if (method === "OPTIONS" && isMounted(path)) {
       return new Response(null, { status: 204, headers: cors });
     }
 
@@ -118,6 +123,12 @@ export default {
       const auth = await authorized(request, env, method === "GET" ? "read" : "write");
       if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
       return handleOntology(request, env, auth, cors);
+    }
+
+    if (path.startsWith("/v1/orchestrator")) {
+      const auth = await authorized(request, env, method === "GET" ? "read" : "ai");
+      if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
+      return handleOrchestrator(request, env, auth, cors);
     }
 
     return core.fetch(request, env, ctx);

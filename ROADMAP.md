@@ -1,43 +1,34 @@
-# ASTON OS — Roadmap hacia capacidad máxima (vs Palantir)
+# ASTON OS — Roadmap (capacidad máxima vs Palantir)
 
-## Fase A — Ontology (esta rama)
-- [x] Tablas `ontology_entities` / `ontology_relations`
-- [x] Módulo `ontology.js` + rutas `/v1/ontology/*`
-- [x] DO `AstonOntology` (cache caliente por tenant)
-- [x] Tools del agent: `ontology_search`, `ontology_traverse`, `ontology_upsert`
-- [ ] Auto-extracción al crear records (siguiente commit)
-- [ ] Vectorize sobre entidades (cuando el índice exista)
+## Fase A — Ontology ✅
+- Entities / relations / extract / agent tools / DO cache
+- Rutas `/v1/ontology/*` vía worker entry
 
-## Fase B — Orchestrator multi-agent
-- DO `AstonOrchestrator` + planes multi-paso
-- Agents especializados (Analyst, Compliance, Supplier, Growth)
-- Memoria compartida + artefactos R2
+## Fase B — Orchestrator ✅ (esta rama)
+- [x] DO `AstonOrchestrator`
+- [x] Roles: analyst, compliance, supplier, growth + synthesizer
+- [x] Plan multi-paso + persistencia `orchestrator_runs`
+- [x] Artefactos R2 opcionales
+- [x] Rutas `/v1/orchestrator/*`
 
 ## Fase C — Cases / playbooks
 - Tabla `cases` + estados
-- Playbooks operativos (audit tienda, riesgo proveedor, anomalía ledger)
-- Webhooks de cambio de grafo
+- Playbooks (audit tienda, riesgo proveedor, anomalía ledger)
+- Webhooks de cambio de grafo / caso
 
 ## Fase D — Gobernanza enterprise
 - Scopes por plugin
-- RLS estricto tenant+actor
+- RLS estricto
 - Lineage de entidades
 - Export audit → R2
 
 ## Fase E — Voice unificado
-- Misma sesión voice + agent + ontology tools
-- Extracción de entidades desde transcript
+- Voice session + agent + ontology + orchestrator tools
 
 ## Fase F — Data fusion
-- Conectores Shopify / CSV / webhooks
-- Jobs de sync → ontology + Vectorize
+- Conectores Shopify / CSV / webhooks → ontology + Vectorize
 
 ---
-
-**Deploy Fase A**
-
 ```bash
-npm run db:init
-npx wrangler deploy
-curl -s -H "Authorization: Bearer $TOKEN" https://<worker>/v1/ontology/types
+npm run db:init && npx wrangler deploy
 ```
