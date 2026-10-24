@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "9.5.0",
+  "version": "9.6.0",
   "private": true,
-  "description": "ASTON OS 9.5.0 — Ontology + Orchestrator + Cases + Governance",
+  "description": "ASTON OS 9.6.0 — Ontology + Orchestrator + Cases + Governance + Voice unified",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

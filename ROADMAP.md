@@ -1,16 +1,12 @@
 # ASTON OS — Roadmap
 
-## A Ontology ✅  B Orchestrator ✅  C Cases ✅  D Governance ✅
-
-### Phase D delivered
-- Scopes + role presets
-- tenant_actors (actor-level permissions)
-- lineage table + API
-- audit export → R2
-- worker gate by scopeForPath
-
-## Fase E — Voice unificado
-- Voice session tools → ontology / cases / orchestrator
+## A–E completas en ramas de fase
+- A Ontology ✅
+- B Orchestrator ✅
+- C Cases ✅
+- D Governance ✅
+- E Voice unificado ✅ (`voice-tools.js` + `voice-realtime.js` 9.6.0)
 
 ## Fase F — Data fusion
-- Conectores → ontology + Vectorize
+- Conectores Shopify / CSV / webhooks
+- Sync → ontology + Vectorize
