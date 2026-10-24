@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, type
 CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs (tenant, created_at);
 CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL);
 
--- Enterprise 9.1.0 (Master Plan)
 CREATE TABLE IF NOT EXISTS tenant_plans (
   tenant TEXT PRIMARY KEY,
   plan TEXT NOT NULL,
@@ -53,7 +52,6 @@ CREATE TABLE IF NOT EXISTS enterprise_events (
   created_at TEXT NOT NULL
 );
 
--- Phase A: Ontology
 CREATE TABLE IF NOT EXISTS ontology_entities (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
@@ -78,7 +76,6 @@ CREATE TABLE IF NOT EXISTS ontology_relations (
 CREATE INDEX IF NOT EXISTS idx_ont_rel_from ON ontology_relations (tenant, from_id, rel_type);
 CREATE INDEX IF NOT EXISTS idx_ont_rel_to ON ontology_relations (tenant, to_id, rel_type);
 
--- Phase B: Orchestrator runs
 CREATE TABLE IF NOT EXISTS orchestrator_runs (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
@@ -93,7 +90,6 @@ CREATE TABLE IF NOT EXISTS orchestrator_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_orch_runs_tenant ON orchestrator_runs (tenant, created_at);
 
--- Phase C: Cases & playbooks
 CREATE TABLE IF NOT EXISTS cases (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
@@ -121,3 +117,30 @@ CREATE TABLE IF NOT EXISTS case_events (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_case_events ON case_events (tenant, case_id, created_at);
+
+-- Phase D: Governance
+CREATE TABLE IF NOT EXISTS tenant_actors (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  role TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_actor ON tenant_actors (tenant, actor);
+CREATE TABLE IF NOT EXISTS lineage (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  entity_kind TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  source_id TEXT,
+  transform TEXT,
+  meta TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lineage_entity ON lineage (tenant, entity_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_lineage_source ON lineage (tenant, source_kind, source_id);
