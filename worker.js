@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phase A Ontology + Phase B Orchestrator mounted at the edge.
+ * ASTON OS entry — Phase A Ontology + B Orchestrator + C Cases
  */
 import core, {
   AstonSession,
@@ -10,6 +10,7 @@ import core, {
 } from "./index.js";
 import { handleOntology, AstonOntology } from "./ontology.js";
 import { handleOrchestrator, AstonOrchestrator } from "./orchestrator.js";
+import { handleCases } from "./cases.js";
 
 export {
   AstonSession,
@@ -98,14 +99,18 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "9.3.0",
+      "x-aston-os": "9.4.0",
       ...headers
     }
   });
 }
 
 function isMounted(path) {
-  return path.startsWith("/v1/ontology") || path.startsWith("/v1/orchestrator");
+  return (
+    path.startsWith("/v1/ontology") ||
+    path.startsWith("/v1/orchestrator") ||
+    path.startsWith("/v1/cases")
+  );
 }
 
 export default {
@@ -129,6 +134,12 @@ export default {
       const auth = await authorized(request, env, method === "GET" ? "read" : "ai");
       if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
       return handleOrchestrator(request, env, auth, cors);
+    }
+
+    if (path.startsWith("/v1/cases")) {
+      const auth = await authorized(request, env, method === "GET" ? "read" : "write");
+      if (!auth) return json({ ok: false, error: "unauthorized" }, 401, cors);
+      return handleCases(request, env, auth, cors);
     }
 
     return core.fetch(request, env, ctx);
