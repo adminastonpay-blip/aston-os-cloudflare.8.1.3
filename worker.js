@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phases A–H (Truth Receipts)
+ * ASTON OS entry — Phases A–I (Edge metrics)
  */
 import core, {
   AstonSession,
@@ -20,6 +20,7 @@ import {
 import { handleFusion } from "./fusion.js";
 import { handleFoundry } from "./foundry.js";
 import { handleReceipts } from "./receipts.js";
+import { handleMetrics, recordLatency, timingHeaders } from "./metrics.js";
 
 export {
   AstonSession,
@@ -116,7 +117,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "10.1.0",
+      "x-aston-os": "10.2.0",
       ...headers
     }
   });
@@ -131,7 +132,8 @@ function isMounted(path) {
     path.startsWith("/v1/fusion") ||
     path.startsWith("/v1/foundry") ||
     path.startsWith("/v1/search") ||
-    path.startsWith("/v1/receipts")
+    path.startsWith("/v1/receipts") ||
+    path.startsWith("/v1/metrics")
   );
 }
 
@@ -146,7 +148,16 @@ function routeScope(path, method) {
   if (path.startsWith("/v1/receipts")) {
     return method === "GET" ? ["read", "audit:read", "admin"] : ["write", "ai", "admin"];
   }
+  if (path.startsWith("/v1/metrics")) {
+    return ["read", "admin"];
+  }
   return null;
+}
+
+function routeKey(path) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length >= 2) return parts.slice(0, 3).join(".");
+  return path || "root";
 }
 
 async function gate(request, env, path, method, cors, scopeOverride) {
@@ -166,57 +177,97 @@ async function gate(request, env, path, method, cors, scopeOverride) {
   return { auth };
 }
 
+async function timed(env, auth, path, colo, handler) {
+  const t0 = Date.now();
+  let res;
+  let ok = true;
+  try {
+    res = await handler();
+    ok = res.status < 500;
+    const ms = Date.now() - t0;
+    const headers = new Headers(res.headers);
+    headers.set("x-aston-ms", String(ms));
+    headers.set("server-timing", `app;dur=${ms}`);
+    headers.set("x-aston-os", "10.2.0");
+    await recordLatency(env, {
+      tenant: auth?.tenant || "default",
+      route: routeKey(path),
+      ms,
+      ok,
+      colo
+    });
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+  } catch (e) {
+    const ms = Date.now() - t0;
+    await recordLatency(env, {
+      tenant: auth?.tenant || "default",
+      route: routeKey(path),
+      ms,
+      ok: false,
+      colo
+    });
+    throw e;
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const method = request.method.toUpperCase();
     const cors = corsHeaders(request, env);
+    const colo = request.cf?.colo || null;
 
     if (method === "OPTIONS" && isMounted(path)) {
       return new Response(null, { status: 204, headers: cors });
     }
 
+    if (path.startsWith("/v1/metrics")) {
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return timed(env, g.auth, path, colo, () => handleMetrics(request, env, g.auth, cors, request.cf));
+    }
+
     if (path.startsWith("/v1/ontology")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleOntology(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleOntology(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/orchestrator")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleOrchestrator(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleOrchestrator(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/cases")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleCases(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleCases(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/governance")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleGovernance(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleGovernance(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/fusion")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleFusion(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleFusion(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/foundry") || path.startsWith("/v1/search")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleFoundry(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleFoundry(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/receipts")) {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
-      return handleReceipts(request, env, g.auth, cors);
+      return timed(env, g.auth, path, colo, () => handleReceipts(request, env, g.auth, cors));
     }
 
     return core.fetch(request, env, ctx);
