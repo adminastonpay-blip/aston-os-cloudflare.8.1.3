@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.2.0",
+  "version": "10.3.0",
   "private": true,
-  "description": "ASTON OS 10.2.0 — Edge latency metrics + benchmark",
+  "description": "ASTON OS 10.3.0 — Edge UI Command dashboard",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

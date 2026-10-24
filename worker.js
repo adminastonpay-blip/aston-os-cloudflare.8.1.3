@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phases A–I (Edge metrics)
+ * ASTON OS entry — Phases A–J (UI Dashboard)
  */
 import core, {
   AstonSession,
@@ -20,7 +20,8 @@ import {
 import { handleFusion } from "./fusion.js";
 import { handleFoundry } from "./foundry.js";
 import { handleReceipts } from "./receipts.js";
-import { handleMetrics, recordLatency, timingHeaders } from "./metrics.js";
+import { handleMetrics, recordLatency } from "./metrics.js";
+import { handleUI } from "./ui.js";
 
 export {
   AstonSession,
@@ -117,7 +118,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "10.2.0",
+      "x-aston-os": "10.3.0",
       ...headers
     }
   });
@@ -179,16 +180,14 @@ async function gate(request, env, path, method, cors, scopeOverride) {
 
 async function timed(env, auth, path, colo, handler) {
   const t0 = Date.now();
-  let res;
-  let ok = true;
   try {
-    res = await handler();
-    ok = res.status < 500;
+    const res = await handler();
+    const ok = res.status < 500;
     const ms = Date.now() - t0;
     const headers = new Headers(res.headers);
     headers.set("x-aston-ms", String(ms));
     headers.set("server-timing", `app;dur=${ms}`);
-    headers.set("x-aston-os", "10.2.0");
+    headers.set("x-aston-os", "10.3.0");
     await recordLatency(env, {
       tenant: auth?.tenant || "default",
       route: routeKey(path),
@@ -217,6 +216,12 @@ export default {
     const method = request.method.toUpperCase();
     const cors = corsHeaders(request, env);
     const colo = request.cf?.colo || null;
+
+    // Public UI shell (API calls still require token in the page)
+    if (method === "GET" && (path === "/ui" || path === "/v1/ui")) {
+      const ui = handleUI(request, env, path);
+      if (ui) return ui;
+    }
 
     if (method === "OPTIONS" && isMounted(path)) {
       return new Response(null, { status: 204, headers: cors });

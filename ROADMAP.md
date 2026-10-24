@@ -1,9 +1,7 @@
 # ASTON OS — Roadmap
 
-## Worker
-A–G Foundry · H Truth Receipts · **I Edge Metrics (v10.2.0)**
+## Worker + UI shell
+A–G · H Receipts · I Metrics · **J UI /ui (v10.3.0)**
 
 ## Next
-- Merge H+I → deploy
-- UI dashboard (fuera o estático)
-- PoV + legal patents
+Merge H→J · Deploy · PoV · Legal patents
