@@ -118,7 +118,6 @@ CREATE TABLE IF NOT EXISTS case_events (
 );
 CREATE INDEX IF NOT EXISTS idx_case_events ON case_events (tenant, case_id, created_at);
 
--- Phase D: Governance
 CREATE TABLE IF NOT EXISTS tenant_actors (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
@@ -144,3 +143,17 @@ CREATE TABLE IF NOT EXISTS lineage (
 );
 CREATE INDEX IF NOT EXISTS idx_lineage_entity ON lineage (tenant, entity_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_lineage_source ON lineage (tenant, source_kind, source_id);
+
+-- Phase F: Data fusion
+CREATE TABLE IF NOT EXISTS fusion_runs (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  stats TEXT,
+  error TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fusion_runs ON fusion_runs (tenant, created_at);
