@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.0.0",
+  "version": "10.1.0",
   "private": true,
-  "description": "ASTON OS 10.0.0 — Foundry-core Worker (types, actions, search, approvals)",
+  "description": "ASTON OS 10.1.0 — Truth Receipts (signed autonomous decisions)",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

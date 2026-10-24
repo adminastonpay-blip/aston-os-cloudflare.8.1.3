@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phases A–G (Foundry core on Worker)
+ * ASTON OS entry — Phases A–H (Truth Receipts)
  */
 import core, {
   AstonSession,
@@ -19,6 +19,7 @@ import {
 } from "./governance.js";
 import { handleFusion } from "./fusion.js";
 import { handleFoundry } from "./foundry.js";
+import { handleReceipts } from "./receipts.js";
 
 export {
   AstonSession,
@@ -115,7 +116,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "10.0.0",
+      "x-aston-os": "10.1.0",
       ...headers
     }
   });
@@ -129,7 +130,8 @@ function isMounted(path) {
     path.startsWith("/v1/governance") ||
     path.startsWith("/v1/fusion") ||
     path.startsWith("/v1/foundry") ||
-    path.startsWith("/v1/search")
+    path.startsWith("/v1/search") ||
+    path.startsWith("/v1/receipts")
   );
 }
 
@@ -140,6 +142,9 @@ function routeScope(path, method) {
   if (path.startsWith("/v1/foundry") || path.startsWith("/v1/search")) {
     if (path.includes("/approvals") && method === "POST") return ["admin", "write"];
     return method === "GET" ? ["read", "admin"] : ["write", "admin"];
+  }
+  if (path.startsWith("/v1/receipts")) {
+    return method === "GET" ? ["read", "audit:read", "admin"] : ["write", "ai", "admin"];
   }
   return null;
 }
@@ -206,6 +211,12 @@ export default {
       const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
       return handleFoundry(request, env, g.auth, cors);
+    }
+
+    if (path.startsWith("/v1/receipts")) {
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return handleReceipts(request, env, g.auth, cors);
     }
 
     return core.fetch(request, env, ctx);

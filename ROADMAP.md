@@ -1,10 +1,11 @@
 # ASTON OS — Roadmap
 
-## Done on Worker
-A Ontology · B Orchestrator · C Cases · D Governance · E Voice · F Fusion · **G Foundry core**
+## Worker done
+A–G Foundry core · **H Truth Receipts (v10.1.0)**
 
-## Outside Worker (required for true Palantir parity)
-- Workshop UI (graph + cases + object views)
-- Continuous connectors at scale
-- SSO / compliance certifications
-- Customer deployment teams
+## Next (Blue Ocean)
+1. Deploy + `ASTON_RECEIPT_SECRET`
+2. Latency benchmarks (p50/p99)
+3. Provisional patents (legal)
+4. UI dashboard
+5. Corporate PoV
