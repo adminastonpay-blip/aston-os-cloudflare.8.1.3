@@ -228,7 +228,6 @@ CREATE TABLE IF NOT EXISTS sync_schedules (
   updated_at TEXT NOT NULL
 );
 
--- Phase H: Truth Receipts
 CREATE TABLE IF NOT EXISTS truth_receipts (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
