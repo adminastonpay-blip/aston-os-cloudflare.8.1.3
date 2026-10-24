@@ -144,7 +144,6 @@ CREATE TABLE IF NOT EXISTS lineage (
 CREATE INDEX IF NOT EXISTS idx_lineage_entity ON lineage (tenant, entity_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_lineage_source ON lineage (tenant, source_kind, source_id);
 
--- Phase F: Data fusion
 CREATE TABLE IF NOT EXISTS fusion_runs (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
@@ -157,3 +156,75 @@ CREATE TABLE IF NOT EXISTS fusion_runs (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_fusion_runs ON fusion_runs (tenant, created_at);
+
+-- Phase G: Foundry core
+CREATE TABLE IF NOT EXISTS object_types (
+  id TEXT NOT NULL,
+  tenant TEXT NOT NULL,
+  title TEXT NOT NULL,
+  properties TEXT,
+  version INTEGER NOT NULL DEFAULT 1,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tenant, id)
+);
+CREATE TABLE IF NOT EXISTS link_types (
+  id TEXT NOT NULL,
+  tenant TEXT NOT NULL,
+  from_type TEXT NOT NULL,
+  to_type TEXT NOT NULL,
+  title TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (tenant, id)
+);
+CREATE TABLE IF NOT EXISTS entity_history (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  before_json TEXT,
+  after_json TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ent_hist ON entity_history (tenant, entity_id, created_at);
+CREATE TABLE IF NOT EXISTS object_actions_log (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  entity_id TEXT,
+  action_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  payload TEXT,
+  result TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_obj_act ON object_actions_log (tenant, created_at);
+CREATE TABLE IF NOT EXISTS approvals (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  title TEXT NOT NULL,
+  payload TEXT,
+  decision_note TEXT,
+  requested_by TEXT,
+  decided_by TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_approvals ON approvals (tenant, status, created_at);
+CREATE TABLE IF NOT EXISTS sync_schedules (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  name TEXT NOT NULL,
+  connector TEXT NOT NULL,
+  config TEXT,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  last_run_at TEXT,
+  last_status TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
