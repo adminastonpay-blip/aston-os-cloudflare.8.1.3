@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS enterprise_events (
   created_at TEXT NOT NULL
 );
 
--- Phase A: Ontology (Palantir-class knowledge layer)
+-- Phase A: Ontology
 CREATE TABLE IF NOT EXISTS ontology_entities (
   id TEXT PRIMARY KEY,
   tenant TEXT NOT NULL,
@@ -77,3 +77,18 @@ CREATE TABLE IF NOT EXISTS ontology_relations (
 );
 CREATE INDEX IF NOT EXISTS idx_ont_rel_from ON ontology_relations (tenant, from_id, rel_type);
 CREATE INDEX IF NOT EXISTS idx_ont_rel_to ON ontology_relations (tenant, to_id, rel_type);
+
+-- Phase B: Orchestrator runs
+CREATE TABLE IF NOT EXISTS orchestrator_runs (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  goal TEXT NOT NULL,
+  status TEXT NOT NULL,
+  plan TEXT,
+  result TEXT,
+  error TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_orch_runs_tenant ON orchestrator_runs (tenant, created_at);
