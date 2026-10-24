@@ -1,7 +1,10 @@
 # ASTON OS — Roadmap
 
-## Worker + UI shell
-A–G · H Receipts · I Metrics · **J UI /ui (v10.3.0)**
+## Done on branches (merge pending)
+A–G · H Receipts · I Metrics · J UI · **K PoV kit (v10.4.0)**
 
-## Next
-Merge H→J · Deploy · PoV · Legal patents
+## Outside code
+1. Merge `phase-k-pov-kit` → main
+2. Cloudflare deploy + secrets
+3. Live PoV with a real tenant
+4. Provisional patents (legal)

@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phases A–J (UI Dashboard)
+ * ASTON OS entry — Phases A–K (PoV kit)
  */
 import core, {
   AstonSession,
@@ -22,6 +22,7 @@ import { handleFoundry } from "./foundry.js";
 import { handleReceipts } from "./receipts.js";
 import { handleMetrics, recordLatency } from "./metrics.js";
 import { handleUI } from "./ui.js";
+import { handlePov } from "./pov.js";
 
 export {
   AstonSession,
@@ -118,7 +119,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "10.3.0",
+      "x-aston-os": "10.4.0",
       ...headers
     }
   });
@@ -134,7 +135,9 @@ function isMounted(path) {
     path.startsWith("/v1/foundry") ||
     path.startsWith("/v1/search") ||
     path.startsWith("/v1/receipts") ||
-    path.startsWith("/v1/metrics")
+    path.startsWith("/v1/metrics") ||
+    path.startsWith("/v1/pov") ||
+    path.startsWith("/v1/capabilities")
   );
 }
 
@@ -149,8 +152,9 @@ function routeScope(path, method) {
   if (path.startsWith("/v1/receipts")) {
     return method === "GET" ? ["read", "audit:read", "admin"] : ["write", "ai", "admin"];
   }
-  if (path.startsWith("/v1/metrics")) {
-    return ["read", "admin"];
+  if (path.startsWith("/v1/metrics")) return ["read", "admin"];
+  if (path.startsWith("/v1/pov") || path.startsWith("/v1/capabilities")) {
+    return method === "GET" ? ["read", "admin"] : ["write", "admin"];
   }
   return null;
 }
@@ -187,7 +191,7 @@ async function timed(env, auth, path, colo, handler) {
     const headers = new Headers(res.headers);
     headers.set("x-aston-ms", String(ms));
     headers.set("server-timing", `app;dur=${ms}`);
-    headers.set("x-aston-os", "10.3.0");
+    headers.set("x-aston-os", "10.4.0");
     await recordLatency(env, {
       tenant: auth?.tenant || "default",
       route: routeKey(path),
@@ -217,7 +221,6 @@ export default {
     const cors = corsHeaders(request, env);
     const colo = request.cf?.colo || null;
 
-    // Public UI shell (API calls still require token in the page)
     if (method === "GET" && (path === "/ui" || path === "/v1/ui")) {
       const ui = handleUI(request, env, path);
       if (ui) return ui;
@@ -225,6 +228,12 @@ export default {
 
     if (method === "OPTIONS" && isMounted(path)) {
       return new Response(null, { status: 204, headers: cors });
+    }
+
+    if (path.startsWith("/v1/pov") || path.startsWith("/v1/capabilities")) {
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return timed(env, g.auth, path, colo, () => handlePov(request, env, g.auth, cors));
     }
 
     if (path.startsWith("/v1/metrics")) {
