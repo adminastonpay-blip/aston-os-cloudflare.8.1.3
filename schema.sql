@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, type
 CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs (tenant, created_at);
 CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, tenant TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL);
 
--- Enterprise 9.1.0 (Master Plan)
 CREATE TABLE IF NOT EXISTS tenant_plans (
   tenant TEXT PRIMARY KEY,
   plan TEXT NOT NULL,
@@ -52,3 +51,109 @@ CREATE TABLE IF NOT EXISTS enterprise_events (
   payload TEXT,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS ontology_entities (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  props TEXT,
+  source TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ont_ent_tenant ON ontology_entities (tenant, type, updated_at);
+CREATE INDEX IF NOT EXISTS idx_ont_ent_name ON ontology_entities (tenant, name);
+CREATE TABLE IF NOT EXISTS ontology_relations (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  rel_type TEXT NOT NULL,
+  from_id TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  props TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ont_rel_from ON ontology_relations (tenant, from_id, rel_type);
+CREATE INDEX IF NOT EXISTS idx_ont_rel_to ON ontology_relations (tenant, to_id, rel_type);
+
+CREATE TABLE IF NOT EXISTS orchestrator_runs (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  goal TEXT NOT NULL,
+  status TEXT NOT NULL,
+  plan TEXT,
+  result TEXT,
+  error TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_orch_runs_tenant ON orchestrator_runs (tenant, created_at);
+
+CREATE TABLE IF NOT EXISTS cases (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  title TEXT NOT NULL,
+  playbook TEXT,
+  status TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  assignee TEXT,
+  ontology_ids TEXT,
+  payload TEXT,
+  result TEXT,
+  orchestrator_run_id TEXT,
+  created_by TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cases_tenant ON cases (tenant, status, updated_at);
+CREATE TABLE IF NOT EXISTS case_events (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL,
+  tenant TEXT NOT NULL,
+  event TEXT NOT NULL,
+  detail TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_case_events ON case_events (tenant, case_id, created_at);
+
+CREATE TABLE IF NOT EXISTS tenant_actors (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  role TEXT NOT NULL,
+  scopes TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_actor ON tenant_actors (tenant, actor);
+CREATE TABLE IF NOT EXISTS lineage (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  entity_kind TEXT NOT NULL,
+  source_kind TEXT NOT NULL,
+  source_id TEXT,
+  transform TEXT,
+  meta TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lineage_entity ON lineage (tenant, entity_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_lineage_source ON lineage (tenant, source_kind, source_id);
+
+-- Phase F: Data fusion
+CREATE TABLE IF NOT EXISTS fusion_runs (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  source TEXT NOT NULL,
+  status TEXT NOT NULL,
+  stats TEXT,
+  error TEXT,
+  actor TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fusion_runs ON fusion_runs (tenant, created_at);

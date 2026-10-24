@@ -43,7 +43,9 @@ bindings = [
   { name = "ASTON_RATE_LIMITER", class_name = "AstonRateLimiter" },
   { name = "ASTON_LEDGER_LOCK", class_name = "AstonLedgerLock" },
   { name = "ASTON_AGENT", class_name = "AstonAgent" },
-  { name = "ASTON_VOICE", class_name = "AstonVoiceSession" }
+  { name = "ASTON_VOICE", class_name = "AstonVoiceSession" },
+  { name = "ASTON_ONTOLOGY", class_name = "AstonOntology" },
+  { name = "ASTON_ORCHESTRATOR", class_name = "AstonOrchestrator" }
 ]
 
 [[migrations]]
@@ -57,6 +59,14 @@ new_sqlite_classes = ["AstonAgent"]
 [[migrations]]
 tag = "v3-voice"
 new_sqlite_classes = ["AstonVoiceSession"]
+
+[[migrations]]
+tag = "v4-ontology"
+new_sqlite_classes = ["AstonOntology"]
+
+[[migrations]]
+tag = "v5-orchestrator"
+new_sqlite_classes = ["AstonOrchestrator"]
 
 [triggers]
 crons = ["0 * * * *"]

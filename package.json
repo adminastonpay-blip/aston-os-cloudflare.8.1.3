@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "9.1.0",
+  "version": "9.7.0",
   "private": true,
-  "description": "ASTON OS 9.1.0 — Core + Enterprise Live Audit / Growth / Trust / Compliance",
+  "description": "ASTON OS 9.7.0 — Full stack A–F (Ontology, Orchestrator, Cases, Governance, Voice, Fusion)",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

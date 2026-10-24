@@ -1,4 +1,5 @@
-// ASTON Agent Durable Object — tools + traces (v8.5.0)
+// ASTON Agent Durable Object — tools + traces (v9.2.0 Phase A ontology)
+import { ontologyToolSearch, ontologyToolTraverse, ontologyToolUpsert } from "./ontology.js";
 const SECTORS = new Set(["primary", "industry", "infrastructure", "fintech", "govtech", "health", "mobility", "media"]);
 const EMBED_MODEL = "@cf/baai/bge-base-en-v1.5";
 
@@ -111,6 +112,10 @@ export class AstonAgent {
     if (/\b(ledger|saldo|balance|cuenta|account|finanza|movimiento)\b/.test(p)) {
       tools.push({ name: "ledger_summary", args: {} });
     }
+    if (/\b(ontolog|entidad|entidades|grafo|relación|relacion|quién es|quien es|graph|entity|entities)\b/.test(p)) {
+      const q = prompt.replace(/.*\b(?:ontologia|ontología|ontology|entidad|busca|buscar|search)\b/i, "").trim() || prompt;
+      tools.push({ name: "ontology_search", args: { q: q.slice(0, 200) } });
+    }
     if (tools.length === 0) tools.push({ name: "stats", args: {} });
     return tools.slice(0, 4);
   }
@@ -122,6 +127,9 @@ export class AstonAgent {
       case "semantic_search": return this.toolSemanticSearch(tenant, args.q || "", args.top_k || 5);
       case "list_records": return this.toolListRecords(tenant, args.sector, args.limit || 10);
       case "ledger_summary": return this.toolLedgerSummary(tenant, args.account);
+      case "ontology_search": return ontologyToolSearch(this.env, tenant, args.q || "", args.limit || 10);
+      case "ontology_traverse": return ontologyToolTraverse(this.env, tenant, args.entity_id, args.depth || 1);
+      case "ontology_upsert": return ontologyToolUpsert(this.env, tenant, args);
       default: return { error: "unknown_tool", name };
     }
   }
@@ -175,7 +183,7 @@ export class AstonAgent {
       const memory = (await this.ctx.storage.get("memory")) || [];
       const toolContext = toolResults.map(t => `Tool ${t.name}: ${JSON.stringify(t.result).slice(0, 1200)}`).join("\n");
       const messages = [
-        { role: "system", content: "You are ASTON OS agent. Use the tool results to answer accurately. Be concise. If data is missing, say so. Reply in the same language as the user." },
+        { role: "system", content: "You are ASTON OS agent with access to an ontology graph (entities/relations). Prefer ontology tools when reasoning about people, orgs, accounts, orders. Use the tool results to answer accurately. Be concise. If data is missing, say so. Reply in the same language as the user." },
         ...memory.slice(-4),
         { role: "user", content: `User question: ${prompt}\n\nTool results:\n${toolContext || "(none)"}` }
       ];

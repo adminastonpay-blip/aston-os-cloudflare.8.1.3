@@ -1,7 +1,9 @@
-// ASTON Voice Realtime — WebSocket voice agent (Phase 3–4 / v8.10.0)
+// ASTON Voice Realtime — WebSocket voice agent (Phase E unified tools / v9.6.0)
 // Protocol (JSON over WS):
 //   Client → Server: auth | config | audio | text | ping | end
 //   Server → Client: ready | transcript | reply | reply_delta | audio | audio_chunk | audio_end | status | error | pong
+
+import { buildVoiceToolContext } from "./voice-tools.js";
 
 const STT_MODEL = "@cf/openai/whisper-large-v3-turbo";
 const TTS_MODELS = {
@@ -156,7 +158,8 @@ export class AstonVoiceSession {
       history: [],
       authenticated: Boolean(request.headers.get("x-aston-actor")),
       stream_tts: true,
-      stream_llm: true
+      stream_llm: true,
+      enable_orchestrator: url.searchParams.get("enable_orchestrator") === "1"
     };
     this.sessions.set(server, state);
 
@@ -166,13 +169,14 @@ export class AstonVoiceSession {
     } catch (_) {}
 
     send(server, {
-      type: "ready", ok: true, plugin: "voice-realtime", version: "8.10.0", tenant,
+      type: "ready", ok: true, plugin: "voice-realtime", version: "9.6.0", tenant,
       capabilities: {
         stt: Boolean(this.env.AI), tts: Boolean(this.env.AI), llm: Boolean(this.env.AI),
         elevenlabs: Boolean(this.env.ELEVENLABS_API_KEY), r2: Boolean(this.env.ASTON_R2),
-        stream_tts: true, stream_llm: true
+        stream_tts: true, stream_llm: true,
+        tools: true, ontology: true, cases: true, orchestrator: true, phase: "E"
       },
-      config: { speaker, lang, provider, stream_tts: true, stream_llm: true },
+      config: { speaker, lang, provider, stream_tts: true, stream_llm: true, enable_orchestrator: state.enable_orchestrator },
       protocol: {
         client: ["auth", "config", "audio", "text", "ping", "end"],
         server: ["ready", "transcript", "reply", "reply_delta", "audio", "audio_chunk", "audio_end", "status", "error", "pong"]
@@ -185,7 +189,7 @@ export class AstonVoiceSession {
   async webSocketMessage(ws, message) {
     const state = this.sessions.get(ws) || {
       tenant: "default", speaker: "luna", lang: "es", provider: "cloudflare",
-      history: [], authenticated: false, stream_tts: true, stream_llm: true
+      history: [], authenticated: false, stream_tts: true, stream_llm: true, enable_orchestrator: false
     };
     this.sessions.set(ws, state);
 
@@ -230,13 +234,15 @@ export class AstonVoiceSession {
       if (msg.llm_model) state.llm_model = String(msg.llm_model).slice(0, 128);
       if (typeof msg.stream_tts === "boolean") state.stream_tts = msg.stream_tts;
       if (typeof msg.stream_llm === "boolean") state.stream_llm = msg.stream_llm;
+      if (typeof msg.enable_orchestrator === "boolean") state.enable_orchestrator = msg.enable_orchestrator;
       send(ws, {
         type: "ready", ok: true,
         config: {
           speaker: state.speaker, lang: state.lang, provider: state.provider,
           voice_id: state.voice_id || null,
           stream_tts: state.stream_tts !== false,
-          stream_llm: state.stream_llm !== false
+          stream_llm: state.stream_llm !== false,
+          enable_orchestrator: state.enable_orchestrator === true
         }
       });
       return;
@@ -287,26 +293,47 @@ export class AstonVoiceSession {
       if (userText.length > 4000) userText = userText.slice(0, 4000);
     }
 
-    send(ws, { type: "status", phase: "llm" });
     state.history.push({ role: "user", content: userText });
     if (state.history.length > MAX_HISTORY) state.history = state.history.slice(-MAX_HISTORY);
 
+    send(ws, { type: "status", phase: "tools" });
+    let toolContext = "";
+    let toolsUsed = [];
+    try {
+      const toolPack = await buildVoiceToolContext(this.env, {
+        tenant: state.tenant || "default",
+        text: userText,
+        enable_orchestrator: state.enable_orchestrator === true
+      });
+      toolContext = toolPack.context || "";
+      toolsUsed = toolPack.tools_used || [];
+      if (toolsUsed.length) send(ws, { type: "status", phase: "tools", tools_used: toolsUsed });
+    } catch (te) {
+      console.error("voice tools", te?.message || te);
+    }
+
+    send(ws, { type: "status", phase: "llm" });
     const system = {
       role: "system",
-      content: "You are ASTON OS voice assistant. Reply briefly in the same language as the user. Prefer 1–3 short spoken sentences. No markdown, no bullet lists."
+      content: "You are ASTON OS voice assistant with access to live platform tools (ontology graph, operational cases, optional multi-agent orchestrator). Reply briefly in the same language as the user. Prefer 1–3 short spoken sentences. No markdown, no bullet lists. Use tool facts when present; if tools returned nothing useful, say so briefly."
     };
     const model = state.llm_model || this.env.AI_MODEL || LLM_DEFAULT;
     const streamLlm = state.stream_llm !== false;
     const streamTts = state.stream_tts !== false;
 
+    const messages = [system, ...state.history];
+    if (toolContext) {
+      messages.splice(1, 0, { role: "system", content: "Tool results for this turn:\n" + toolContext.slice(0, 3500) });
+    }
+
     let replyText = "";
     try {
       if (streamLlm) {
-        replyText = await streamLlmReply(this.env, model, [system, ...state.history], (delta, full) => {
+        replyText = await streamLlmReply(this.env, model, messages, (delta, full) => {
           send(ws, { type: "reply_delta", text: delta, full: full.slice(0, 2000) });
         });
       } else {
-        const response = await this.env.AI.run(model, { messages: [system, ...state.history] });
+        const response = await this.env.AI.run(model, { messages });
         replyText = typeof response === "string"
           ? response
           : (response?.response || response?.result?.response || response?.text || JSON.stringify(response));
@@ -434,23 +461,24 @@ export async function handleVoiceRealtime(request, env, path, method, url, cors,
     return json({
       ok: true,
       plugin: "voice-realtime",
-      version: "8.10.0",
+      version: "9.6.0",
+      phase: "E",
       websocket: "/v1/voice/ws",
       requires: ["ASTON_VOICE", "AI"],
       active: Boolean(env.ASTON_VOICE) && Boolean(env.AI),
+      tools: ["ontology_search", "ontology_traverse", "cases_list", "stats", "orchestrator_run"],
       protocol: {
         connect: "wss://<host>/v1/voice/ws?tenant=default&lang=es&speaker=luna",
         auth: { type: "auth", token: "<ASTON_API_TOKEN>" },
-        text_turn: { type: "text", text: "Hola" },
+        text_turn: { type: "text", text: "Quién es Acme en la ontología" },
         audio_turn: { type: "audio", audio_base64: "<wav/mp3 base64>" },
-        config: { type: "config", speaker: "luna", lang: "es", provider: "cloudflare", stream_tts: true }
+        config: { type: "config", speaker: "luna", lang: "es", provider: "cloudflare", stream_tts: true, enable_orchestrator: false }
       },
       events_from_server: ["ready", "transcript", "reply", "reply_delta", "audio", "audio_chunk", "audio_end", "status", "error", "pong"],
       streaming: {
         default: true,
         disable: { type: "config", stream_tts: false, stream_llm: false },
-        audio_chunk: { type: "audio_chunk", index: 0, total: 2, final: false, text: "sentence", audio_base64: "..." },
-        audio_end: { type: "audio_end", chunks: 2, mode: "stream" }
+        tools_phase: { type: "status", phase: "tools", tools_used: ["ontology_search"] }
       }
     }, 200, cors);
   }
@@ -459,8 +487,7 @@ export async function handleVoiceRealtime(request, env, path, method, url, cors,
     if (!env.ASTON_VOICE) {
       return json({
         ok: false, error: "plugin_inactive", plugin: "voice-realtime",
-        missing_bindings: ["ASTON_VOICE"],
-        hint: "Add AstonVoiceSession Durable Object binding in wrangler.toml"
+        missing_bindings: ["ASTON_VOICE"]
       }, 503, cors);
     }
     if (!env.AI) {
@@ -469,30 +496,13 @@ export async function handleVoiceRealtime(request, env, path, method, url, cors,
 
     const upgrade = request.headers.get("Upgrade") || "";
     if (upgrade.toLowerCase() !== "websocket") {
-      return json({ ok: false, error: "websocket_required", hint: "Use a WebSocket client against /v1/voice/ws" }, 426, cors);
+      return json({ ok: false, error: "websocket_required", hint: "Use WebSocket upgrade on /v1/voice/ws" }, 426, cors);
     }
 
-    let tenant = url.searchParams.get("tenant") || "default";
-    let actor = "ws";
-    const token =
-      url.searchParams.get("token") ||
-      (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
-    if (env.ASTON_API_TOKEN) {
-      if (!token || token !== env.ASTON_API_TOKEN) {
-        return json({ ok: false, error: "unauthorized" }, 401, cors);
-      }
-      actor = "api-token";
-    }
-    if (request.headers.get("X-Tenant")) tenant = request.headers.get("X-Tenant");
-
-    const sessionKey = `${tenant}:${url.searchParams.get("session") || "default"}`;
-    const id = env.ASTON_VOICE.idFromName(sessionKey);
-    const stub = env.ASTON_VOICE.get(id);
-    const headers = new Headers(request.headers);
-    headers.set("x-aston-tenant", tenant);
-    headers.set("x-aston-actor", actor);
+    const tenant = request.headers.get("x-aston-tenant") || url.searchParams.get("tenant") || "default";
+    const stub = env.ASTON_VOICE.get(env.ASTON_VOICE.idFromName(`voice:${tenant}`));
     return stub.fetch(new Request("https://voice.internal/ws?" + url.searchParams.toString(), {
-      headers,
+      headers: request.headers,
       method: request.method
     }));
   }
