@@ -157,7 +157,6 @@ CREATE TABLE IF NOT EXISTS fusion_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_fusion_runs ON fusion_runs (tenant, created_at);
 
--- Phase G: Foundry core
 CREATE TABLE IF NOT EXISTS object_types (
   id TEXT NOT NULL,
   tenant TEXT NOT NULL,
@@ -228,3 +227,23 @@ CREATE TABLE IF NOT EXISTS sync_schedules (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- Phase H: Truth Receipts
+CREATE TABLE IF NOT EXISTS truth_receipts (
+  id TEXT PRIMARY KEY,
+  tenant TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  subject_id TEXT,
+  actor TEXT,
+  decision TEXT,
+  summary TEXT,
+  input_hash TEXT,
+  output_hash TEXT,
+  payload_json TEXT NOT NULL,
+  signature TEXT NOT NULL,
+  alg TEXT NOT NULL,
+  prev_receipt_id TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_receipts_tenant ON truth_receipts (tenant, created_at);
+CREATE INDEX IF NOT EXISTS idx_receipts_subject ON truth_receipts (tenant, subject_id, created_at);
