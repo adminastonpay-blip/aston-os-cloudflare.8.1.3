@@ -1,10 +1,10 @@
 # ASTON OS — Roadmap
 
-## Done on Worker
-A Ontology · B Orchestrator · C Cases · D Governance · E Voice · F Fusion · **G Foundry core**
+## Done on branches (merge pending)
+A–G · H Receipts · I Metrics · J UI · **K PoV kit (v10.4.0)**
 
-## Outside Worker (required for true Palantir parity)
-- Workshop UI (graph + cases + object views)
-- Continuous connectors at scale
-- SSO / compliance certifications
-- Customer deployment teams
+## Outside code
+1. Merge `phase-k-pov-kit` → main
+2. Cloudflare deploy + secrets
+3. Live PoV with a real tenant
+4. Provisional patents (legal)
