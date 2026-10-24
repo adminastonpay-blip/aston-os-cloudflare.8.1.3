@@ -1,17 +1,10 @@
-# ASTON OS — Roadmap COMPLETE (A–F)
+# ASTON OS — Roadmap
 
-| Phase | Capability | Status |
-|-------|------------|--------|
-| A | Ontology graph | ✅ |
-| B | Multi-agent orchestrator | ✅ |
-| C | Cases & playbooks | ✅ |
-| D | Governance (scopes, lineage, audit export) | ✅ |
-| E | Voice + tools unified | ✅ |
-| F | Data fusion (JSON/CSV/Shopify → ontology) | ✅ |
+## Done on Worker
+A Ontology · B Orchestrator · C Cases · D Governance · E Voice · F Fusion · **G Foundry core**
 
-## Canonical branch for full stack
-`phase-f-fusion` → merge to `main` as **v9.7.0**
-
-```bash
-npm run db:init && npx wrangler deploy
-```
+## Outside Worker (required for true Palantir parity)
+- Workshop UI (graph + cases + object views)
+- Continuous connectors at scale
+- SSO / compliance certifications
+- Customer deployment teams

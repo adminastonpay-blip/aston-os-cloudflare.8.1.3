@@ -1,5 +1,5 @@
 /**
- * ASTON OS entry — Phases A–F (full stack)
+ * ASTON OS entry — Phases A–G (Foundry core on Worker)
  */
 import core, {
   AstonSession,
@@ -18,6 +18,7 @@ import {
   scopeForPath
 } from "./governance.js";
 import { handleFusion } from "./fusion.js";
+import { handleFoundry } from "./foundry.js";
 
 export {
   AstonSession,
@@ -114,7 +115,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "9.7.0",
+      "x-aston-os": "10.0.0",
       ...headers
     }
   });
@@ -126,19 +127,27 @@ function isMounted(path) {
     path.startsWith("/v1/orchestrator") ||
     path.startsWith("/v1/cases") ||
     path.startsWith("/v1/governance") ||
-    path.startsWith("/v1/fusion")
+    path.startsWith("/v1/fusion") ||
+    path.startsWith("/v1/foundry") ||
+    path.startsWith("/v1/search")
   );
 }
 
-function fusionScope(path, method) {
-  if (method === "GET") return ["read", "admin"];
-  return ["write", "admin"];
+function routeScope(path, method) {
+  if (path.startsWith("/v1/fusion")) {
+    return method === "GET" ? ["read", "admin"] : ["write", "admin"];
+  }
+  if (path.startsWith("/v1/foundry") || path.startsWith("/v1/search")) {
+    if (path.includes("/approvals") && method === "POST") return ["admin", "write"];
+    return method === "GET" ? ["read", "admin"] : ["write", "admin"];
+  }
+  return null;
 }
 
 async function gate(request, env, path, method, cors, scopeOverride) {
   const auth = await authorized(request, env, "read");
   if (!auth) return { error: json({ ok: false, error: "unauthorized" }, 401, cors) };
-  const needed = scopeOverride || scopeForPath(path, method);
+  const needed = scopeOverride || routeScope(path, method) || scopeForPath(path, method);
   if (!hasScope(auth, needed)) {
     return {
       error: json({
@@ -188,9 +197,15 @@ export default {
     }
 
     if (path.startsWith("/v1/fusion")) {
-      const g = await gate(request, env, path, method, cors, fusionScope(path, method));
+      const g = await gate(request, env, path, method, cors);
       if (g.error) return g.error;
       return handleFusion(request, env, g.auth, cors);
+    }
+
+    if (path.startsWith("/v1/foundry") || path.startsWith("/v1/search")) {
+      const g = await gate(request, env, path, method, cors);
+      if (g.error) return g.error;
+      return handleFoundry(request, env, g.auth, cors);
     }
 
     return core.fetch(request, env, ctx);
