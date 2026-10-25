@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "11.0.0",
+  "version": "11.1.0",
   "private": true,
-  "description": "ASTON OS 11.0.0 — Sovereign: Swarm + Predictive + Auto-Gov",
+  "description": "ASTON OS 11.1.0 — Sovereign + multi-revenue billing plans",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
