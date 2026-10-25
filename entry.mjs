@@ -1,12 +1,13 @@
 /**
  * ASTON OS — ES Module entry
- * Phase 1 Studio · Phase 2 Connectors · Phase 3 Security
+ * Phase 1 Studio · Phase 2 Connectors · Phase 3 Security · Phase 4 AI Router
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
 import { handleSecurity } from "./security.js";
+import { handleAiRouter } from "./ai_router.js";
 
-const VERSION = "10.8.0";
+const VERSION = "10.9.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -50,6 +51,10 @@ export default {
       return handleSecurity(request, env, path, method, cors);
     }
 
+    if (path.startsWith("/v1/ai")) {
+      return handleAiRouter(request, env, path, method, cors);
+    }
+
     if (method === "GET" && (path === "/" || path === "/health")) {
       return json({
         ok: true,
@@ -57,10 +62,11 @@ export default {
         version: VERSION,
         runtime: "cloudflare-workers",
         format: "es-module",
-        phase: "3-security",
+        phase: "4-ai-router",
         ui: { command: "/ui", studio: "/ui/studio" },
-        connectors: { catalog: "/v1/connectors/catalog", status: "/v1/connectors/status" },
-        security: { status: "/v1/security/status", whoami: "/v1/security/whoami", sso: "/v1/security/sso" },
+        connectors: { catalog: "/v1/connectors/catalog" },
+        security: { status: "/v1/security/status" },
+        ai: { models: "/v1/ai/models", chat: "POST /v1/ai/chat", rag: "POST /v1/ai/rag" },
         durable_objects: [
           "AstonSession", "AstonRateLimiter", "AstonLedgerLock",
           "AstonAgent", "AstonVoiceSession", "AstonOntology", "AstonOrchestrator"
@@ -68,7 +74,7 @@ export default {
       }, 200, cors);
     }
 
-    return json({ ok: false, error: "not_found", path, hint: "Try /health, /ui/studio, /v1/connectors/catalog, /v1/security/status" }, 404, cors);
+    return json({ ok: false, error: "not_found", path, hint: "Try /health, /v1/ai/models, /ui/studio" }, 404, cors);
   },
 
   async scheduled(controller, env, ctx) {
