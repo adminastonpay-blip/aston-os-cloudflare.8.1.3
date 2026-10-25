@@ -1,15 +1,22 @@
 /**
- * ASTON OS entry — Phases A–K (PoV kit)
+ * ASTON OS entry — module Worker + Durable Object exports (required by Wrangler)
+ * Phases A–L
  */
-import core, {
+
+// Named exports must be static `export { X } from` so Wrangler detects module format + DO classes
+export {
   AstonSession,
   AstonRateLimiter,
   AstonLedgerLock,
   AstonAgent,
   AstonVoiceSession
 } from "./index.js";
-import { handleOntology, AstonOntology } from "./ontology.js";
-import { handleOrchestrator, AstonOrchestrator } from "./orchestrator.js";
+export { AstonOntology } from "./ontology.js";
+export { AstonOrchestrator } from "./orchestrator.js";
+
+import core from "./index.js";
+import { handleOntology } from "./ontology.js";
+import { handleOrchestrator } from "./orchestrator.js";
 import { handleCases } from "./cases.js";
 import {
   handleGovernance,
@@ -23,16 +30,6 @@ import { handleReceipts } from "./receipts.js";
 import { handleMetrics, recordLatency } from "./metrics.js";
 import { handleUI } from "./ui.js";
 import { handlePov } from "./pov.js";
-
-export {
-  AstonSession,
-  AstonRateLimiter,
-  AstonLedgerLock,
-  AstonAgent,
-  AstonVoiceSession,
-  AstonOntology,
-  AstonOrchestrator
-};
 
 function bearer(request) {
   const value = request.headers.get("Authorization") || "";
@@ -119,7 +116,7 @@ function json(data, status = 200, headers = {}) {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
-      "x-aston-os": "10.4.0",
+      "x-aston-os": "10.5.1",
       ...headers
     }
   });
@@ -191,7 +188,7 @@ async function timed(env, auth, path, colo, handler) {
     const headers = new Headers(res.headers);
     headers.set("x-aston-ms", String(ms));
     headers.set("server-timing", `app;dur=${ms}`);
-    headers.set("x-aston-os", "10.4.0");
+    headers.set("x-aston-os", "10.5.1");
     await recordLatency(env, {
       tenant: auth?.tenant || "default",
       route: routeKey(path),

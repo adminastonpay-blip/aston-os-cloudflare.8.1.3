@@ -3,11 +3,7 @@ main = "worker.js"
 compatibility_date = "2026-03-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Force module format (Workers Builds + Durable Objects)
-[[rules]]
-type = "ESModule"
-globs = ["**/*.js"]
-fallthrough = true
+# Module Worker (Durable Objects require ES modules — do not use service-worker format)
 
 [observability]
 enabled = true
@@ -70,5 +66,3 @@ new_sqlite_classes = ["AstonOrchestrator"]
 
 [triggers]
 crons = ["0 * * * *"]
-
-# Vectorize intentionally omitted until index exists (error 10159).
