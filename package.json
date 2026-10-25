@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.8.0",
+  "version": "10.9.0",
   "private": true,
-  "description": "ASTON OS 10.8.0 — Phase 3 Security + Connectors + Studio",
+  "description": "ASTON OS 10.9.0 — Phase 4 Multi-Model AI Router + RAG",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
