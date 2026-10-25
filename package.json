@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.10.0",
+  "version": "11.0.0",
   "private": true,
-  "description": "ASTON OS 10.10.0 — Full roadmap: Studio + Connectors + Security + AI + Decision Twin",
+  "description": "ASTON OS 11.0.0 — Sovereign: Swarm + Predictive + Auto-Gov",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
