@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.0.0",
+  "version": "10.5.0",
   "private": true,
-  "description": "ASTON OS 10.0.0 — Foundry-core Worker (types, actions, search, approvals)",
+  "description": "ASTON OS 10.5.0 — Graph UI + PoV kit",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",

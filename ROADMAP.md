@@ -1,10 +1,10 @@
 # ASTON OS — Roadmap
 
-## Done on Worker
-A Ontology · B Orchestrator · C Cases · D Governance · E Voice · F Fusion · **G Foundry core**
+## Branch tip
+`phase-l-graph-ui` = H Receipts + I Metrics + J UI + K PoV + **L Graph (v10.5.0)**
 
-## Outside Worker (required for true Palantir parity)
-- Workshop UI (graph + cases + object views)
-- Continuous connectors at scale
-- SSO / compliance certifications
-- Customer deployment teams
+## Critical path now
+1. Merge → main
+2. Deploy Cloudflare
+3. `/ui` + `POST /v1/pov/demo`
+4. Patents/legal outside repo
