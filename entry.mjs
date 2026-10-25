@@ -1,11 +1,12 @@
 /**
- * ASTON OS — ES Module entry (main = entry.mjs)
- * Phase 1: Ontology Studio  |  Phase 2: Connectors Pipeline
+ * ASTON OS — ES Module entry
+ * Phase 1 Studio · Phase 2 Connectors · Phase 3 Security
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
+import { handleSecurity } from "./security.js";
 
-const VERSION = "10.7.0";
+const VERSION = "10.8.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -18,7 +19,7 @@ function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "*";
   return {
     "access-control-allow-origin": origin,
-    "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
     "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
     "access-control-max-age": "86400",
     vary: "Origin"
@@ -45,6 +46,10 @@ export default {
       return handleConnectors(request, env, path, method, cors);
     }
 
+    if (path.startsWith("/v1/security")) {
+      return handleSecurity(request, env, path, method, cors);
+    }
+
     if (method === "GET" && (path === "/" || path === "/health")) {
       return json({
         ok: true,
@@ -52,13 +57,10 @@ export default {
         version: VERSION,
         runtime: "cloudflare-workers",
         format: "es-module",
-        phase: "2-connectors",
+        phase: "3-security",
         ui: { command: "/ui", studio: "/ui/studio" },
-        connectors: {
-          catalog: "/v1/connectors/catalog",
-          status: "/v1/connectors/status",
-          webhook: "/v1/connectors/webhook/:token"
-        },
+        connectors: { catalog: "/v1/connectors/catalog", status: "/v1/connectors/status" },
+        security: { status: "/v1/security/status", whoami: "/v1/security/whoami", sso: "/v1/security/sso" },
         durable_objects: [
           "AstonSession", "AstonRateLimiter", "AstonLedgerLock",
           "AstonAgent", "AstonVoiceSession", "AstonOntology", "AstonOrchestrator"
@@ -66,7 +68,7 @@ export default {
       }, 200, cors);
     }
 
-    return json({ ok: false, error: "not_found", path, hint: "Try /ui/studio, /v1/connectors/catalog, /health" }, 404, cors);
+    return json({ ok: false, error: "not_found", path, hint: "Try /health, /ui/studio, /v1/connectors/catalog, /v1/security/status" }, 404, cors);
   },
 
   async scheduled(controller, env, ctx) {
