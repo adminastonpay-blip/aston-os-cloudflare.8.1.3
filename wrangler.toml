@@ -3,8 +3,9 @@ main = "index.js"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Durable Objects require ES Module format (not service-worker).
-# main = index.js which contains both export default { fetch } and all DO classes.
+# Force modules format (Durable Objects require ES modules)
+[build.upload]
+format = "modules"
 
 [observability]
 enabled = true
