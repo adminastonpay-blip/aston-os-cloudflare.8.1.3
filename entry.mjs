@@ -1,6 +1,6 @@
 /**
- * ASTON OS 11.0.0 — Sovereign leap
- * Phases 1–5 + Swarm · Predictive Stream · Auto-Governance
+ * ASTON OS 11.1.0 — Sovereign + Commerce
+ * Phases 1–5 + Swarm · Predictive · Auto-Gov · Billing plans
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -10,8 +10,9 @@ import { handleDecisionTwin } from "./decision_twin.js";
 import { handleSwarm } from "./swarm.js";
 import { handlePredictive } from "./predictive.js";
 import { handleAutoGov } from "./auto_gov.js";
+import { handleBilling } from "./billing.js";
 
-const VERSION = "11.0.0";
+const VERSION = "11.1.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -47,6 +48,7 @@ export default {
       if (res) return res;
     }
 
+    if (path.startsWith("/v1/billing")) return handleBilling(request, env, path, method, cors);
     if (path.startsWith("/v1/connectors")) return handleConnectors(request, env, path, method, cors);
     if (path.startsWith("/v1/security")) return handleSecurity(request, env, path, method, cors);
     if (path.startsWith("/v1/ai")) return handleAiRouter(request, env, path, method, cors);
@@ -62,8 +64,9 @@ export default {
         version: VERSION,
         runtime: "cloudflare-workers",
         format: "es-module",
-        phase: "11-sovereign",
+        phase: "11-commerce",
         roadmap: "complete",
+        billing: { rate_card: "/v1/billing/rate-card", subscribe: "POST /v1/billing/subscribe" },
         sovereign: {
           swarm: "/v1/swarm/status",
           predictive: "/v1/predictive/status",
@@ -83,7 +86,7 @@ export default {
       }, 200, cors);
     }
 
-    return json({ ok: false, error: "not_found", path, hint: "Try /health, /v1/swarm/status, /ui/studio" }, 404, cors);
+    return json({ ok: false, error: "not_found", path, hint: "Try /health, /v1/billing/rate-card" }, 404, cors);
   },
 
   async scheduled(controller, env, ctx) {
