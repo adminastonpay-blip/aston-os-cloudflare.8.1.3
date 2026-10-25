@@ -1,7 +1,6 @@
 /**
- * Cloudflare Worker entry (ES Module).
- * Durable Objects require module format — this file only re-exports.
- * Do not use service-worker (addEventListener) style.
+ * Cloudflare Worker entry (ES Module format — required for Durable Objects).
+ * Only re-exports. Do not add addEventListener (service-worker style).
  */
 export { default } from "./index.js";
 export {
