@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "10.7.0",
+  "version": "10.8.0",
   "private": true,
-  "description": "ASTON OS 10.7.0 — Phase 2 Universal Connectors + Phase 1 Studio",
+  "description": "ASTON OS 10.8.0 — Phase 3 Security + Connectors + Studio",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
