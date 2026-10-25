@@ -1,7 +1,11 @@
 /**
- * ASTON OS — explicit .mjs entry so esbuild/Wrangler always see ES module + default export.
+ * ASTON OS — ES Module entry (main = entry.mjs)
+ * Phase 1: Ontology Studio at /ui/studio
+ * Durable Object classes exported from this file for Wrangler format detection.
  */
-const VERSION = "10.5.1";
+import { handleUI } from "./ui.js";
+
+const VERSION = "10.6.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -10,32 +14,61 @@ function json(data, status = 200, headers = {}) {
   });
 }
 
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin") || "*";
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
+    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor",
+    "access-control-max-age": "86400",
+    vary: "Origin"
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (request.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "access-control-allow-origin": "*",
-          "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-          "access-control-allow-headers": "Authorization,Content-Type,X-Tenant"
-        }
-      });
+    const method = request.method.toUpperCase();
+    const cors = corsHeaders(request);
+
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: cors });
     }
-    if (request.method === "GET" && (path === "/" || path === "/health")) {
-      return json({
-        ok: true,
-        service: "ASTON OS",
-        version: VERSION,
-        runtime: "cloudflare-workers",
-        format: "es-module",
-        entry: "entry.mjs"
-      });
+
+    if (method === "GET" && (path === "/ui" || path === "/ui/studio" || path === "/v1/ui" || path === "/v1/ui/studio")) {
+      const res = handleUI(request, env, path);
+      if (res) return res;
     }
-    return json({ ok: false, error: "not_found", path }, 404);
+
+    if (method === "GET" && (path === "/" || path === "/health")) {
+      return json(
+        {
+          ok: true,
+          service: "ASTON OS",
+          version: VERSION,
+          runtime: "cloudflare-workers",
+          format: "es-module",
+          phase: "1-studio",
+          ui: { command: "/ui", studio: "/ui/studio" },
+          durable_objects: [
+            "AstonSession",
+            "AstonRateLimiter",
+            "AstonLedgerLock",
+            "AstonAgent",
+            "AstonVoiceSession",
+            "AstonOntology",
+            "AstonOrchestrator"
+          ]
+        },
+        200,
+        cors
+      );
+    }
+
+    return json({ ok: false, error: "not_found", path, hint: "Try /ui/studio or /health" }, 404, cors);
   },
+
   async scheduled(controller, env, ctx) {
     if (env.ASTON_KV) {
       try {
