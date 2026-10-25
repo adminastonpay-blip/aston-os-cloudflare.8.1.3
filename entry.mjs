@@ -1,14 +1,17 @@
 /**
- * ASTON OS — ES Module entry
- * Phases 1–5: Studio · Connectors · Security · AI Router · Decision Twin
+ * ASTON OS 11.0.0 — Sovereign leap
+ * Phases 1–5 + Swarm · Predictive Stream · Auto-Governance
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
 import { handleSecurity } from "./security.js";
 import { handleAiRouter } from "./ai_router.js";
 import { handleDecisionTwin } from "./decision_twin.js";
+import { handleSwarm } from "./swarm.js";
+import { handlePredictive } from "./predictive.js";
+import { handleAutoGov } from "./auto_gov.js";
 
-const VERSION = "10.10.0";
+const VERSION = "11.0.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -44,21 +47,13 @@ export default {
       if (res) return res;
     }
 
-    if (path.startsWith("/v1/connectors")) {
-      return handleConnectors(request, env, path, method, cors);
-    }
-
-    if (path.startsWith("/v1/security")) {
-      return handleSecurity(request, env, path, method, cors);
-    }
-
-    if (path.startsWith("/v1/ai")) {
-      return handleAiRouter(request, env, path, method, cors);
-    }
-
-    if (path.startsWith("/v1/twin")) {
-      return handleDecisionTwin(request, env, path, method, cors);
-    }
+    if (path.startsWith("/v1/connectors")) return handleConnectors(request, env, path, method, cors);
+    if (path.startsWith("/v1/security")) return handleSecurity(request, env, path, method, cors);
+    if (path.startsWith("/v1/ai")) return handleAiRouter(request, env, path, method, cors);
+    if (path.startsWith("/v1/twin")) return handleDecisionTwin(request, env, path, method, cors);
+    if (path.startsWith("/v1/swarm")) return handleSwarm(request, env, path, method, cors);
+    if (path.startsWith("/v1/predictive")) return handlePredictive(request, env, path, method, cors);
+    if (path.startsWith("/v1/gov")) return handleAutoGov(request, env, path, method, cors);
 
     if (method === "GET" && (path === "/" || path === "/health")) {
       return json({
@@ -67,13 +62,20 @@ export default {
         version: VERSION,
         runtime: "cloudflare-workers",
         format: "es-module",
-        phase: "5-decision-twin",
+        phase: "11-sovereign",
         roadmap: "complete",
-        ui: { command: "/ui", studio: "/ui/studio" },
-        connectors: { catalog: "/v1/connectors/catalog" },
-        security: { status: "/v1/security/status" },
-        ai: { models: "/v1/ai/models", chat: "POST /v1/ai/chat", rag: "POST /v1/ai/rag" },
-        twin: { status: "/v1/twin/status", scenarios: "/v1/twin/scenarios" },
+        sovereign: {
+          swarm: "/v1/swarm/status",
+          predictive: "/v1/predictive/status",
+          auto_gov: "/v1/gov/status"
+        },
+        ui: { studio: "/ui/studio" },
+        modules: {
+          connectors: "/v1/connectors/catalog",
+          security: "/v1/security/status",
+          ai: "/v1/ai/models",
+          twin: "/v1/twin/status"
+        },
         durable_objects: [
           "AstonSession", "AstonRateLimiter", "AstonLedgerLock",
           "AstonAgent", "AstonVoiceSession", "AstonOntology", "AstonOrchestrator"
@@ -81,7 +83,7 @@ export default {
       }, 200, cors);
     }
 
-    return json({ ok: false, error: "not_found", path, hint: "Try /health, /v1/twin/status, /ui/studio" }, 404, cors);
+    return json({ ok: false, error: "not_found", path, hint: "Try /health, /v1/swarm/status, /ui/studio" }, 404, cors);
   },
 
   async scheduled(controller, env, ctx) {
