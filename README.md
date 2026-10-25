@@ -1,38 +1,27 @@
-# ASTON OS
+# ASTON OS (Cloudflare Worker)
 
-Edge AI Worker on Cloudflare (Workers, D1, R2, KV, Durable Objects, Workers AI).
+**main @ v10.5.0** — Edge operational intelligence: ontology, multi-agent orchestrator, cases, governance, fusion, Foundry core, Truth Receipts, metrics, `/ui` graph + PoV kit.
 
-**Brand:** ASTON OS only. No third-party clothing-store or legacy store names (no Leyni / Leyni Aston).
+## Quick links
+- Deploy: see **[DEPLOY.md](./DEPLOY.md)**
+- Roadmap: [ROADMAP.md](./ROADMAP.md)
+- UI (after deploy): `https://<worker>/ui`
 
-## Version
-
-See `package.json` / `GET /` → `version`.
+## Modules (A–L)
+| Area | Routes |
+|------|--------|
+| Ontology / Foundry | `/v1/ontology`, `/v1/foundry`, `/v1/search` |
+| Orchestrator | `/v1/orchestrator` |
+| Cases | `/v1/cases` |
+| Governance | `/v1/governance` |
+| Fusion | `/v1/fusion` |
+| Truth Receipts | `/v1/receipts` |
+| Metrics | `/v1/metrics` |
+| PoV | `/v1/pov`, `/v1/capabilities` |
+| UI | `/ui` |
 
 ## Auth
+`Authorization: Bearer <ASTON_API_TOKEN>` and optional `X-Tenant`.
 
-Protected routes need:
-
-```http
-Authorization: Bearer <ASTON_API_TOKEN>
-```
-
-Optional secret for voice:
-
-```bash
-npx wrangler secret put ELEVENLABS_API_KEY
-```
-
-## Main routes
-
-| Area | Paths |
-|------|--------|
-| Health | `GET /`, `GET /health` |
-| Plugins | `GET /v1/plugins` |
-| AI | `POST /v1/ai/chat`, `POST /v1/ai/image`, `POST /v1/ai/video` |
-| Voice | `POST /v1/voice/tts`, `POST /v1/voice/stt`, `POST /v1/voice/speak` |
-| Academy | `GET /academy/courses`, `POST /academy/enroll` |
-| Agent | `POST /v1/agent/run` |
-
-## Deploy note
-
-Do **not** bind Vectorize until the index exists, or remove the `VECTORIZE` binding from the Cloudflare dashboard if the index is missing.
+## Honest scope
+This is an edge-native ops stack, not full Palantir Foundry parity. LLM/orchestrator latency is not sub-100ms end-to-end; edge-core benchmarks are separate.
