@@ -1,11 +1,11 @@
 /**
  * ASTON OS — ES Module entry (main = entry.mjs)
- * Phase 1: Ontology Studio at /ui/studio
- * Durable Object classes exported from this file for Wrangler format detection.
+ * Phase 1: Ontology Studio  |  Phase 2: Connectors Pipeline
  */
 import { handleUI } from "./ui.js";
+import { handleConnectors } from "./connectors.js";
 
-const VERSION = "10.6.0";
+const VERSION = "10.7.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -19,7 +19,7 @@ function corsHeaders(request) {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,DELETE,OPTIONS",
-    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor",
+    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
     "access-control-max-age": "86400",
     vary: "Origin"
   };
@@ -41,32 +41,32 @@ export default {
       if (res) return res;
     }
 
-    if (method === "GET" && (path === "/" || path === "/health")) {
-      return json(
-        {
-          ok: true,
-          service: "ASTON OS",
-          version: VERSION,
-          runtime: "cloudflare-workers",
-          format: "es-module",
-          phase: "1-studio",
-          ui: { command: "/ui", studio: "/ui/studio" },
-          durable_objects: [
-            "AstonSession",
-            "AstonRateLimiter",
-            "AstonLedgerLock",
-            "AstonAgent",
-            "AstonVoiceSession",
-            "AstonOntology",
-            "AstonOrchestrator"
-          ]
-        },
-        200,
-        cors
-      );
+    if (path.startsWith("/v1/connectors")) {
+      return handleConnectors(request, env, path, method, cors);
     }
 
-    return json({ ok: false, error: "not_found", path, hint: "Try /ui/studio or /health" }, 404, cors);
+    if (method === "GET" && (path === "/" || path === "/health")) {
+      return json({
+        ok: true,
+        service: "ASTON OS",
+        version: VERSION,
+        runtime: "cloudflare-workers",
+        format: "es-module",
+        phase: "2-connectors",
+        ui: { command: "/ui", studio: "/ui/studio" },
+        connectors: {
+          catalog: "/v1/connectors/catalog",
+          status: "/v1/connectors/status",
+          webhook: "/v1/connectors/webhook/:token"
+        },
+        durable_objects: [
+          "AstonSession", "AstonRateLimiter", "AstonLedgerLock",
+          "AstonAgent", "AstonVoiceSession", "AstonOntology", "AstonOrchestrator"
+        ]
+      }, 200, cors);
+    }
+
+    return json({ ok: false, error: "not_found", path, hint: "Try /ui/studio, /v1/connectors/catalog, /health" }, 404, cors);
   },
 
   async scheduled(controller, env, ctx) {
