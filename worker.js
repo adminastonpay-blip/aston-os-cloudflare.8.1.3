@@ -1,18 +1,190 @@
 /**
- * ASTON OS v11.3.0 - ES Module Entrypoint Bridge
- * Auditoría de integridad: Preserva Walker, Swarm, Twin y la compatibilidad con Cloudflare Workers.
+ * ASTON OS 11.3.0 — MAIN for Wrangler (main = worker.js)
+ * Named DO class exports MUST live in this file. Re-exports break format detection.
  */
+import { handleUI } from "./ui.js";
+import { handleConnectors } from "./connectors.js";
+import { handleSecurity } from "./security.js";
+import { handleAiRouter } from "./ai_router.js";
+import { handleDecisionTwin } from "./decision_twin.js";
+import { handleSwarm } from "./swarm.js";
+import { handlePredictive } from "./predictive.js";
+import { handleAutoGov } from "./auto_gov.js";
+import { handleBilling } from "./billing.js";
+import { handleSovereign, sovereignGate } from "./sovereign_dna.js";
+import { handleAstonNative } from "./aston_native.js";
 
-// 1. Exportación principal del Handler HTTP/Fetch hacia el núcleo v11
-export { default } from "./entry.mjs";
+const VERSION = "11.3.0";
 
-// 2. Exportación de clases de Durable Objects (Requerido por Cloudflare para no bloquear el deploy)
-export {
-  AstonSession,
-  AstonRateLimiter,
-  AstonLedgerLock,
-  AstonAgent,
-  AstonVoiceSession,
-  AstonOntology,
-  AstonOrchestrator
-} from "./entry.mjs";
+function json(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "x-aston-os": VERSION, ...headers }
+  });
+}
+
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin") || "*";
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Sovereign-Master-Key,X-Sovereign-License,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
+    "access-control-max-age": "86400",
+    vary: "Origin"
+  };
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    const method = request.method.toUpperCase();
+    const cors = corsHeaders(request);
+
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    const locked = await sovereignGate(request, env, path, cors);
+    if (locked) return locked;
+
+    if (path.startsWith("/v1/sovereign")) return handleSovereign(request, env, path, method, cors);
+    if (path.startsWith("/v1/native")) return handleAstonNative(request, env, path, method, cors);
+
+    if (method === "GET" && (path === "/ui" || path === "/ui/studio" || path === "/v1/ui" || path === "/v1/ui/studio")) {
+      const res = handleUI(request, env, path);
+      if (res) return res;
+    }
+
+    if (path.startsWith("/v1/billing")) return handleBilling(request, env, path, method, cors);
+    if (path.startsWith("/v1/connectors")) return handleConnectors(request, env, path, method, cors);
+    if (path.startsWith("/v1/security")) return handleSecurity(request, env, path, method, cors);
+    if (path.startsWith("/v1/ai")) return handleAiRouter(request, env, path, method, cors);
+    if (path.startsWith("/v1/twin")) return handleDecisionTwin(request, env, path, method, cors);
+    if (path.startsWith("/v1/swarm")) return handleSwarm(request, env, path, method, cors);
+    if (path.startsWith("/v1/predictive")) return handlePredictive(request, env, path, method, cors);
+    if (path.startsWith("/v1/gov")) return handleAutoGov(request, env, path, method, cors);
+
+    if (method === "GET" && (path === "/" || path === "/health")) {
+      return json({
+        ok: true,
+        service: "ASTON OS",
+        version: VERSION,
+        runtime: "cloudflare-workers",
+        format: "es-module",
+        phase: "11-native",
+        differentiators: "/v1/native/capabilities",
+        sovereign: "/v1/sovereign/status",
+        billing: "/v1/billing/rate-card",
+        ui: { studio: "/ui/studio" }
+      }, 200, cors);
+    }
+
+    return json({ ok: false, error: "not_found", path }, 404, cors);
+  },
+
+  async scheduled(controller, env, ctx) {
+    if (env.ASTON_KV) {
+      try {
+        await env.ASTON_KV.put("aston:last-cron", new Date().toISOString(), { expirationTtl: 1209600 });
+      } catch (_) {}
+    }
+  }
+};
+
+export class AstonSession {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch(request) {
+    if (request.method === "GET") {
+      return json({ ok: true, session: (await this.state.storage.get("session")) ?? null });
+    }
+    if (request.method === "DELETE") {
+      await this.state.storage.deleteAll();
+      return json({ ok: true, deleted: true });
+    }
+    if (request.method === "POST") {
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object") return json({ ok: false, error: "json_required" }, 400);
+      const next = {
+        ...((await this.state.storage.get("session")) || {}),
+        ...body,
+        updated_at: new Date().toISOString()
+      };
+      await this.state.storage.put("session", next);
+      return json({ ok: true, session: next });
+    }
+    return json({ ok: false, error: "method_not_allowed" }, 405);
+  }
+}
+
+export class AstonRateLimiter {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch(request) {
+    const key = `count:${Math.floor(Date.now() / 60000)}`;
+    const count = (await this.state.storage.get(key)) || 0;
+    const limit = Number(this.env.RATE_LIMIT_PER_MINUTE || 120);
+    if (count >= limit) {
+      return json({ ok: false, error: "rate_limited" }, 429, { "retry-after": "60" });
+    }
+    await this.state.storage.put(key, count + 1);
+    return json({ ok: true, remaining: limit - count - 1 });
+  }
+}
+
+export class AstonLedgerLock {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch(request) {
+    const body = await request.json().catch(() => ({}));
+    const key = String(body.key || "default");
+    return json({ ok: true, key, value: (await this.state.storage.get(key)) ?? null });
+  }
+}
+
+export class AstonAgent {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch() {
+    return json({ ok: true, service: "AstonAgent" });
+  }
+}
+
+export class AstonVoiceSession {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch() {
+    return json({ ok: true, service: "AstonVoiceSession" });
+  }
+}
+
+export class AstonOntology {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch() {
+    return json({ ok: true, service: "AstonOntology" });
+  }
+}
+
+export class AstonOrchestrator {
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
+  }
+  async fetch() {
+    return json({ ok: true, service: "AstonOrchestrator" });
+  }
+}
