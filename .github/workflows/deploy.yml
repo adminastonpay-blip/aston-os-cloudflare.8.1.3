@@ -16,10 +16,13 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "22"
 
-      - name: Install wrangler
-        run: npm install --no-audit --no-fund wrangler@4.151.0
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Smoke test
+        run: node run.mjs
 
       - name: Deploy Worker
         env:
@@ -27,7 +30,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-            echo "Missing secret CLOUDFLARE_API_TOKEN — skip deploy"
-            exit 0
+            echo "ERROR: Missing GitHub secret CLOUDFLARE_API_TOKEN"
+            echo "Add it under Settings → Secrets → Actions"
+            exit 1
           fi
-          npx wrangler deploy
+          npx wrangler deploy --outdir=/tmp/aston-dist
