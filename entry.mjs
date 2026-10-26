@@ -1,6 +1,5 @@
 /**
- * ASTON OS 11.1.0 — Sovereign + Commerce
- * Phases 1–5 + Swarm · Predictive · Auto-Gov · Billing plans
+ * ASTON OS 11.2.0 — Sovereign seal + commerce + edge engines
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -11,8 +10,9 @@ import { handleSwarm } from "./swarm.js";
 import { handlePredictive } from "./predictive.js";
 import { handleAutoGov } from "./auto_gov.js";
 import { handleBilling } from "./billing.js";
+import { handleSovereign, sovereignGate } from "./sovereign_dna.js";
 
-const VERSION = "11.1.0";
+const VERSION = "11.2.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -26,7 +26,7 @@ function corsHeaders(request) {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
+    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Sovereign-Master-Key,X-Sovereign-License,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
     "access-control-max-age": "86400",
     vary: "Origin"
   };
@@ -41,6 +41,14 @@ export default {
 
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: cors });
+    }
+
+    // Creator seal + kill-switch + optional license (fail closed without secrets)
+    const locked = await sovereignGate(request, env, path, cors);
+    if (locked) return locked;
+
+    if (path.startsWith("/v1/sovereign")) {
+      return handleSovereign(request, env, path, method, cors);
     }
 
     if (method === "GET" && (path === "/ui" || path === "/ui/studio" || path === "/v1/ui" || path === "/v1/ui/studio")) {
@@ -64,29 +72,14 @@ export default {
         version: VERSION,
         runtime: "cloudflare-workers",
         format: "es-module",
-        phase: "11-commerce",
-        roadmap: "complete",
-        billing: { rate_card: "/v1/billing/rate-card", subscribe: "POST /v1/billing/subscribe" },
-        sovereign: {
-          swarm: "/v1/swarm/status",
-          predictive: "/v1/predictive/status",
-          auto_gov: "/v1/gov/status"
-        },
-        ui: { studio: "/ui/studio" },
-        modules: {
-          connectors: "/v1/connectors/catalog",
-          security: "/v1/security/status",
-          ai: "/v1/ai/models",
-          twin: "/v1/twin/status"
-        },
-        durable_objects: [
-          "AstonSession", "AstonRateLimiter", "AstonLedgerLock",
-          "AstonAgent", "AstonVoiceSession", "AstonOntology", "AstonOrchestrator"
-        ]
+        phase: "11-sovereign-seal",
+        sovereign: "/v1/sovereign/status",
+        billing: "/v1/billing/rate-card",
+        ui: { studio: "/ui/studio" }
       }, 200, cors);
     }
 
-    return json({ ok: false, error: "not_found", path, hint: "Try /health, /v1/billing/rate-card" }, 404, cors);
+    return json({ ok: false, error: "not_found", path }, 404, cors);
   },
 
   async scheduled(controller, env, ctx) {
