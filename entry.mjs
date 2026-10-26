@@ -1,5 +1,5 @@
 /**
- * ASTON OS 11.2.0 — Sovereign seal + commerce + edge engines
+ * ASTON OS 11.3.0 — Native differentiators + sovereign seal + commerce
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -11,8 +11,9 @@ import { handlePredictive } from "./predictive.js";
 import { handleAutoGov } from "./auto_gov.js";
 import { handleBilling } from "./billing.js";
 import { handleSovereign, sovereignGate } from "./sovereign_dna.js";
+import { handleAstonNative } from "./aston_native.js";
 
-const VERSION = "11.2.0";
+const VERSION = "11.3.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -43,13 +44,11 @@ export default {
       return new Response(null, { status: 204, headers: cors });
     }
 
-    // Creator seal + kill-switch + optional license (fail closed without secrets)
     const locked = await sovereignGate(request, env, path, cors);
     if (locked) return locked;
 
-    if (path.startsWith("/v1/sovereign")) {
-      return handleSovereign(request, env, path, method, cors);
-    }
+    if (path.startsWith("/v1/sovereign")) return handleSovereign(request, env, path, method, cors);
+    if (path.startsWith("/v1/native")) return handleAstonNative(request, env, path, method, cors);
 
     if (method === "GET" && (path === "/ui" || path === "/ui/studio" || path === "/v1/ui" || path === "/v1/ui/studio")) {
       const res = handleUI(request, env, path);
@@ -71,8 +70,8 @@ export default {
         service: "ASTON OS",
         version: VERSION,
         runtime: "cloudflare-workers",
-        format: "es-module",
-        phase: "11-sovereign-seal",
+        phase: "11-native",
+        differentiators: "/v1/native/capabilities",
         sovereign: "/v1/sovereign/status",
         billing: "/v1/billing/rate-card",
         ui: { studio: "/ui/studio" }
