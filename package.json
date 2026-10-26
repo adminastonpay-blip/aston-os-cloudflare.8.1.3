@@ -1,11 +1,11 @@
 {
   "name": "aston-os",
-  "version": "11.3.2",
+  "version": "11.3.3",
   "private": true,
   "type": "module",
   "scripts": {
-    "deploy": "wrangler deploy",
-    "dry": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy --config wrangler.toml",
+    "dry": "wrangler deploy --dry-run --config wrangler.toml",
     "dev": "wrangler dev",
     "test": "node run.mjs"
   },
