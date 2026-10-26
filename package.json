@@ -1,14 +1,14 @@
 {
   "name": "aston-os",
-  "version": "11.3.0",
+  "version": "11.3.1",
   "private": true,
-  "description": "ASTON OS 11.3.0 — edge decision fabric",
+  "description": "ASTON OS 11.3.1 — edge decision fabric",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "test": "node run.mjs",
     "check": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
+    "deploy": "node scripts/predeploy.mjs && wrangler deploy --config wrangler.toml",
     "db:init": "wrangler d1 execute aston-omni-primary --remote --file=schema.sql && wrangler d1 execute aston-omni-backup --remote --file=schema.sql"
   },
   "devDependencies": {
