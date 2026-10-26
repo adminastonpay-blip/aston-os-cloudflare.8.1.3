@@ -1,10 +1,8 @@
 /**
- * ASTON OS — Cloudflare Worker entry (ES Module).
- * Durable Objects REQUIRE module format. The default export MUST live
- * in this file (the one named by wrangler.toml main=) so Wrangler's
- * format detector does not fall back to service-worker.
+ * Compatibility entry — Cloudflare Builds sometimes resolve worker.js.
+ * Always re-export the v11 ES module from entry.mjs.
  */
-import core from "./index.js";
+export { default } from "./entry.mjs";
 export {
   AstonSession,
   AstonRateLimiter,
@@ -13,20 +11,4 @@ export {
   AstonVoiceSession,
   AstonOntology,
   AstonOrchestrator
-} from "./index.js";
-
-export default {
-  async fetch(request, env, ctx) {
-    return core.fetch(request, env, ctx);
-  },
-  async scheduled(controller, env, ctx) {
-    if (typeof core.scheduled === "function") {
-      return core.scheduled(controller, env, ctx);
-    }
-  },
-  async queue(batch, env, ctx) {
-    if (typeof core.queue === "function") {
-      return core.queue(batch, env, ctx);
-    }
-  }
-};
+} from "./entry.mjs";
