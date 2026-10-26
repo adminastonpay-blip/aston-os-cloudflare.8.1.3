@@ -1,25 +1,20 @@
 /**
- * ASTON OS 11.3.0 — MAIN for Wrangler (main = worker.js)
- * Named DO class exports MUST live in this file. Re-exports break format detection.
+ * ASTON OS 11.3.1 — MAIN (wrangler main = worker.js)
+ * ZERO static imports: Wrangler format detector must only see
+ *   export default + export class *
+ * Route handlers load via dynamic import() so they cannot poison detection.
  */
-import { handleUI } from "./ui.js";
-import { handleConnectors } from "./connectors.js";
-import { handleSecurity } from "./security.js";
-import { handleAiRouter } from "./ai_router.js";
-import { handleDecisionTwin } from "./decision_twin.js";
-import { handleSwarm } from "./swarm.js";
-import { handlePredictive } from "./predictive.js";
-import { handleAutoGov } from "./auto_gov.js";
-import { handleBilling } from "./billing.js";
-import { handleSovereign, sovereignGate } from "./sovereign_dna.js";
-import { handleAstonNative } from "./aston_native.js";
 
-const VERSION = "11.3.0";
+const VERSION = "11.3.1";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "x-aston-os": VERSION, ...headers }
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "x-aston-os": VERSION,
+      ...headers
+    }
   });
 }
 
@@ -28,7 +23,8 @@ function corsHeaders(request) {
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "access-control-allow-headers": "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Sovereign-Master-Key,X-Sovereign-License,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
+    "access-control-allow-headers":
+      "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Sovereign-Master-Key,X-Sovereign-License,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
     "access-control-max-age": "86400",
     vary: "Origin"
   };
@@ -45,48 +41,47 @@ export default {
       return new Response(null, { status: 204, headers: cors });
     }
 
-    const locked = await sovereignGate(request, env, path, cors);
-    if (locked) return locked;
-
-    if (path.startsWith("/v1/sovereign")) return handleSovereign(request, env, path, method, cors);
-    if (path.startsWith("/v1/native")) return handleAstonNative(request, env, path, method, cors);
-
-    if (method === "GET" && (path === "/ui" || path === "/ui/studio" || path === "/v1/ui" || path === "/v1/ui/studio")) {
-      const res = handleUI(request, env, path);
-      if (res) return res;
-    }
-
-    if (path.startsWith("/v1/billing")) return handleBilling(request, env, path, method, cors);
-    if (path.startsWith("/v1/connectors")) return handleConnectors(request, env, path, method, cors);
-    if (path.startsWith("/v1/security")) return handleSecurity(request, env, path, method, cors);
-    if (path.startsWith("/v1/ai")) return handleAiRouter(request, env, path, method, cors);
-    if (path.startsWith("/v1/twin")) return handleDecisionTwin(request, env, path, method, cors);
-    if (path.startsWith("/v1/swarm")) return handleSwarm(request, env, path, method, cors);
-    if (path.startsWith("/v1/predictive")) return handlePredictive(request, env, path, method, cors);
-    if (path.startsWith("/v1/gov")) return handleAutoGov(request, env, path, method, cors);
-
+    // Always answer health without loading route modules
     if (method === "GET" && (path === "/" || path === "/health")) {
-      return json({
-        ok: true,
-        service: "ASTON OS",
-        version: VERSION,
-        runtime: "cloudflare-workers",
-        format: "es-module",
-        phase: "11-native",
-        differentiators: "/v1/native/capabilities",
-        sovereign: "/v1/sovereign/status",
-        billing: "/v1/billing/rate-card",
-        ui: { studio: "/ui/studio" }
-      }, 200, cors);
+      return json(
+        {
+          ok: true,
+          service: "ASTON OS",
+          version: VERSION,
+          runtime: "cloudflare-workers",
+          format: "es-module",
+          phase: "11-native",
+          differentiators: "/v1/native/capabilities",
+          sovereign: "/v1/sovereign/status",
+          billing: "/v1/billing/rate-card"
+        },
+        200,
+        cors
+      );
     }
 
-    return json({ ok: false, error: "not_found", path }, 404, cors);
+    try {
+      const routes = await import("./routes.js");
+      return await routes.handleRequest(request, env, ctx, path, method, cors, json);
+    } catch (err) {
+      return json(
+        {
+          ok: false,
+          error: "route_load_failed",
+          detail: String(err && err.message ? err.message : err).slice(0, 300)
+        },
+        500,
+        cors
+      );
+    }
   },
 
   async scheduled(controller, env, ctx) {
     if (env.ASTON_KV) {
       try {
-        await env.ASTON_KV.put("aston:last-cron", new Date().toISOString(), { expirationTtl: 1209600 });
+        await env.ASTON_KV.put("aston:last-cron", new Date().toISOString(), {
+          expirationTtl: 1209600
+        });
       } catch (_) {}
     }
   }
