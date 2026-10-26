@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "11.1.0",
+  "version": "11.2.0",
   "private": true,
-  "description": "ASTON OS 11.1.0 — Sovereign + multi-revenue billing plans",
+  "description": "ASTON OS 11.2.0 — Creator seal, kill-switch, multi-revenue",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
