@@ -1,22 +1,25 @@
-import worker from "./index.js";
+import worker from "./entry.mjs";
 import assert from "node:assert/strict";
 
-const env = {};
-const root = await worker.fetch(new Request("https://aston.test/"), env, {});
+const env = {
+  ASTON_API_TOKEN: "test-token",
+  ASTON_RECEIPT_SECRET: "test-receipt",
+  SOVEREIGN_MASTER_KEY: "test-master",
+  SOVEREIGN_FAIL_CLOSED: "0"
+};
+
+const root = await worker.fetch(new Request("https://aston.test/health"), env, {});
 const rootBody = await root.json();
-assert.equal(root.status, 200);
-assert.equal(rootBody.version, "9.0.0");
-assert.ok(rootBody.plugins.total >= 8);
+assert.equal(root.status, 200, "health status");
+assert.ok(rootBody.ok === true, "ok");
+assert.ok(String(rootBody.version).startsWith("11."), "version 11.x, got " + rootBody.version);
 
-const agent = await worker.fetch(new Request("https://aston.test/v1/agent/run", {
-  method: "POST",
-  headers: { "content-type": "application/json" },
-  body: JSON.stringify({ prompt: "stats" })
-}), env, {});
-assert.ok([401, 503].includes(agent.status));
+const native = await worker.fetch(new Request("https://aston.test/v1/native/capabilities"), env, {});
+assert.equal(native.status, 200, "native capabilities");
+const nativeBody = await native.json();
+assert.ok(nativeBody.capabilities?.length > 0, "has capabilities");
 
-const traces = await worker.fetch(new Request("https://aston.test/v1/agent/traces"), env, {});
-assert.ok([401, 503].includes(traces.status));
+const billing = await worker.fetch(new Request("https://aston.test/v1/billing/rate-card"), env, {});
+assert.equal(billing.status, 200, "rate card");
 
-console.log("ASTON OS 9.0.0 smoke tests passed");
-console.log("Plugins:", rootBody.plugins.list.map(p => p.id).join(", "));
+console.log("ASTON OS", rootBody.version, "smoke tests passed");
