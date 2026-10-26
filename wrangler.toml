@@ -1,10 +1,7 @@
 name = "aston-os-cloudflare-8-1-3"
 main = "index.js"
-compatibility_date = "2024-11-01"
+compatibility_date = "2025-10-01"
 workers_dev = true
-
-[observability]
-enabled = true
 
 [vars]
 ENVIRONMENT = "production"
@@ -32,16 +29,33 @@ bucket_name = "aston-omni-datalake"
 binding = "ASTON_KV"
 id = "f0f5b71491c34b80ad8d7365acc6336e"
 
-[durable_objects]
-bindings = [
-  { name = "ASTON_SESSION", class_name = "AstonSession" },
-  { name = "ASTON_RATE_LIMITER", class_name = "AstonRateLimiter" },
-  { name = "ASTON_LEDGER_LOCK", class_name = "AstonLedgerLock" },
-  { name = "ASTON_AGENT", class_name = "AstonAgent" },
-  { name = "ASTON_VOICE", class_name = "AstonVoiceSession" },
-  { name = "ASTON_ONTOLOGY", class_name = "AstonOntology" },
-  { name = "ASTON_ORCHESTRATOR", class_name = "AstonOrchestrator" }
-]
+[[durable_objects.bindings]]
+name = "ASTON_SESSION"
+class_name = "AstonSession"
+
+[[durable_objects.bindings]]
+name = "ASTON_RATE_LIMITER"
+class_name = "AstonRateLimiter"
+
+[[durable_objects.bindings]]
+name = "ASTON_LEDGER_LOCK"
+class_name = "AstonLedgerLock"
+
+[[durable_objects.bindings]]
+name = "ASTON_AGENT"
+class_name = "AstonAgent"
+
+[[durable_objects.bindings]]
+name = "ASTON_VOICE"
+class_name = "AstonVoiceSession"
+
+[[durable_objects.bindings]]
+name = "ASTON_ONTOLOGY"
+class_name = "AstonOntology"
+
+[[durable_objects.bindings]]
+name = "ASTON_ORCHESTRATOR"
+class_name = "AstonOrchestrator"
 
 [[migrations]]
 tag = "v1-extreme"
@@ -62,6 +76,3 @@ new_sqlite_classes = ["AstonOntology"]
 [[migrations]]
 tag = "v5-orchestrator"
 new_sqlite_classes = ["AstonOrchestrator"]
-
-[triggers]
-crons = ["0 * * * *"]
