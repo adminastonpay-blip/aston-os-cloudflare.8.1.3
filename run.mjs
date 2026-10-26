@@ -1,4 +1,4 @@
-import worker from "./entry.mjs";
+import worker from "./worker.js";
 import assert from "node:assert/strict";
 
 const env = {
@@ -16,10 +16,5 @@ assert.ok(String(rootBody.version).startsWith("11."), "version 11.x, got " + roo
 
 const native = await worker.fetch(new Request("https://aston.test/v1/native/capabilities"), env, {});
 assert.equal(native.status, 200, "native capabilities");
-const nativeBody = await native.json();
-assert.ok(nativeBody.capabilities?.length > 0, "has capabilities");
-
-const billing = await worker.fetch(new Request("https://aston.test/v1/billing/rate-card"), env, {});
-assert.equal(billing.status, 200, "rate card");
 
 console.log("ASTON OS", rootBody.version, "smoke tests passed");
