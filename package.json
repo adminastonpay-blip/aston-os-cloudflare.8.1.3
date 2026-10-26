@@ -1,8 +1,8 @@
 {
   "name": "aston-os",
-  "version": "11.2.0",
+  "version": "11.3.0",
   "private": true,
-  "description": "ASTON OS 11.2.0 — Creator seal, kill-switch, multi-revenue",
+  "description": "ASTON OS 11.3.0 — Native PoE chain + sovereign + commerce",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
