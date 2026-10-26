@@ -1,9 +1,10 @@
 /**
- * ASTON OS 11.3.1 — canonical ES Module Worker entry
- * Must contain REAL `export default` and `export class` (not re-exports).
- * Wrangler treats missing default export as service-worker → DO deploy fails.
+ * ASTON OS 11.3.2 — Cloudflare ES Module Worker (official pattern)
+ * https://developers.cloudflare.com/workers/reference/migrate-to-module-workers/
  */
-const VERSION = "11.3.1";
+import { DurableObject } from "cloudflare:workers";
+
+const VERSION = "11.3.2";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -44,13 +45,11 @@ export default {
         {
           ok: true,
           service: "ASTON OS",
+          brand: "ASTON OS",
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "11-native",
-          differentiators: "/v1/native/capabilities",
-          billing: "/v1/billing/rate-card",
-          sovereign: "/v1/sovereign/status"
+          phase: "11-native"
         },
         200,
         cors
@@ -65,7 +64,7 @@ export default {
         {
           ok: false,
           error: "route_load_failed",
-          detail: String(err && err.message ? err.message : err).slice(0, 300)
+          detail: String(err && err.message ? err.message : err).slice(0, 400)
         },
         500,
         cors
@@ -73,7 +72,7 @@ export default {
     }
   },
 
-  async scheduled(controller, env, ctx) {
+  async scheduled(_controller, env) {
     if (env && env.ASTON_KV) {
       try {
         await env.ASTON_KV.put("aston:last-cron", new Date().toISOString(), {
@@ -84,11 +83,7 @@ export default {
   }
 };
 
-export class AstonSession {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonSession extends DurableObject {
   async fetch(request) {
     if (request.method === "GET") {
       return json({ ok: true, session: (await this.ctx.storage.get("session")) ?? null });
@@ -104,11 +99,8 @@ export class AstonSession {
       } catch {
         return json({ ok: false, error: "json_required" }, 400);
       }
-      if (!body || typeof body !== "object") {
-        return json({ ok: false, error: "json_required" }, 400);
-      }
       const cur = (await this.ctx.storage.get("session")) || {};
-      const next = { ...cur, ...body, updated_at: new Date().toISOString() };
+      const next = Object.assign({}, cur, body, { updated_at: new Date().toISOString() });
       await this.ctx.storage.put("session", next);
       return json({ ok: true, session: next });
     }
@@ -116,15 +108,11 @@ export class AstonSession {
   }
 }
 
-export class AstonRateLimiter {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonRateLimiter extends DurableObject {
   async fetch(request) {
     const key = "count:" + Math.floor(Date.now() / 60000);
     const count = (await this.ctx.storage.get(key)) || 0;
-    const limit = Number((this.env && this.env.RATE_LIMIT_PER_MINUTE) || 120);
+    const limit = Number(this.env.RATE_LIMIT_PER_MINUTE || 120);
     if (count >= limit) {
       return json({ ok: false, error: "rate_limited" }, 429, { "retry-after": "60" });
     }
@@ -133,56 +121,36 @@ export class AstonRateLimiter {
   }
 }
 
-export class AstonLedgerLock {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonLedgerLock extends DurableObject {
   async fetch(request) {
     let body = {};
     try {
       body = await request.json();
     } catch (_) {}
-    const key = String((body && body.key) || "default");
+    const key = String(body.key || "default");
     return json({ ok: true, key, value: (await this.ctx.storage.get(key)) ?? null });
   }
 }
 
-export class AstonAgent {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonAgent extends DurableObject {
   async fetch() {
     return json({ ok: true, service: "AstonAgent" });
   }
 }
 
-export class AstonVoiceSession {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonVoiceSession extends DurableObject {
   async fetch() {
     return json({ ok: true, service: "AstonVoiceSession" });
   }
 }
 
-export class AstonOntology {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonOntology extends DurableObject {
   async fetch() {
     return json({ ok: true, service: "AstonOntology" });
   }
 }
 
-export class AstonOrchestrator {
-  constructor(ctx, env) {
-    this.ctx = ctx;
-    this.env = env;
-  }
+export class AstonOrchestrator extends DurableObject {
   async fetch() {
     return json({ ok: true, service: "AstonOrchestrator" });
   }
