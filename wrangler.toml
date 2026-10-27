@@ -2,6 +2,7 @@ name = "aston-os-cloudflare-8-1-3"
 main = "worker.mjs"
 compatibility_date = "2025-10-01"
 workers_dev = true
+no_bundle = false
 
 [vars]
 ENVIRONMENT = "production"
@@ -76,3 +77,8 @@ new_sqlite_classes = ["AstonOntology"]
 [[migrations]]
 tag = "v5-orchestrator"
 new_sqlite_classes = ["AstonOrchestrator"]
+
+# Force module format detection
+[[rules]]
+type = "ESModule"
+globs = ["**/*.mjs", "**/*.js"]
