@@ -1,12 +1,29 @@
-// ASTON OS — Ontology layer (Phase A)
-const ENTITY_TYPES = new Set(["person","organization","account","product","order","location","asset","supplier","store","document","event","risk","metric","other"]);
-const REL_TYPES = new Set(["owns","belongs_to","works_at","located_in","supplies","buys_from","related_to","mentions","derived_from","transacted_with","audited","risks"]);
+// ASTON OS — Ontology layer (Phase 1 Foundry-core)
+// Entities, relations, graph query, pathfinding, extract
+
+const ENTITY_TYPES = new Set([
+  "person", "organization", "account", "product", "order", "location", "asset",
+  "supplier", "store", "document", "event", "risk", "metric", "other"
+]);
+const REL_TYPES = new Set([
+  "owns", "belongs_to", "works_at", "located_in", "supplies", "buys_from",
+  "related_to", "mentions", "derived_from", "transacted_with", "audited", "risks"
+]);
+
+const VERSION = "11.4.0";
 
 const json = (data, status = 200, headers = {}) =>
-  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", "x-aston-os": VERSION, ...headers }
+  });
 
 async function readJson(request) {
   try { return await request.json(); } catch { return null; }
+}
+
+function safeParse(s, fallback) {
+  try { return s ? JSON.parse(s) : fallback; } catch { return fallback; }
 }
 
 export async function ensureOntologySchema(db) {
@@ -38,18 +55,23 @@ async function upsertEntity(db, tenant, { id, type, name, props, source }) {
   const src = source ? String(source).slice(0, 200) : null;
   const existing = await db.prepare("SELECT id FROM ontology_entities WHERE tenant = ? AND id = ?").bind(tenant, eid).first();
   if (existing) {
-    await db.prepare("UPDATE ontology_entities SET type = ?, name = ?, props = ?, source = COALESCE(?, source), updated_at = ? WHERE tenant = ? AND id = ?")
-      .bind(etype, ename, propsJson, src, now, tenant, eid).run();
+    await db.prepare(
+      "UPDATE ontology_entities SET type = ?, name = ?, props = ?, source = COALESCE(?, source), updated_at = ? WHERE tenant = ? AND id = ?"
+    ).bind(etype, ename, propsJson, src, now, tenant, eid).run();
     return eid;
   }
-  const byName = await db.prepare("SELECT id FROM ontology_entities WHERE tenant = ? AND type = ? AND lower(name) = lower(?) LIMIT 1").bind(tenant, etype, ename).first();
+  const byName = await db.prepare(
+    "SELECT id FROM ontology_entities WHERE tenant = ? AND type = ? AND lower(name) = lower(?) LIMIT 1"
+  ).bind(tenant, etype, ename).first();
   if (byName?.id) {
-    await db.prepare("UPDATE ontology_entities SET props = ?, source = COALESCE(?, source), updated_at = ? WHERE tenant = ? AND id = ?")
-      .bind(propsJson, src, now, tenant, byName.id).run();
+    await db.prepare(
+      "UPDATE ontology_entities SET props = ?, source = COALESCE(?, source), updated_at = ? WHERE tenant = ? AND id = ?"
+    ).bind(propsJson, src, now, tenant, byName.id).run();
     return byName.id;
   }
-  await db.prepare("INSERT INTO ontology_entities (id, tenant, type, name, props, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-    .bind(eid, tenant, etype, ename, propsJson, src, now, now).run();
+  await db.prepare(
+    "INSERT INTO ontology_entities (id, tenant, type, name, props, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(eid, tenant, etype, ename, propsJson, src, now, now).run();
   return eid;
 }
 
@@ -57,10 +79,14 @@ async function createRelation(db, tenant, { id, rel_type, from_id, to_id, props 
   const rid = id || slugId("rel");
   const rt = REL_TYPES.has(String(rel_type || "").toLowerCase()) ? String(rel_type).toLowerCase() : "related_to";
   if (!from_id || !to_id) throw new Error("from_id_and_to_id_required");
+  const from = await db.prepare("SELECT id FROM ontology_entities WHERE tenant = ? AND id = ?").bind(tenant, String(from_id)).first();
+  const to = await db.prepare("SELECT id FROM ontology_entities WHERE tenant = ? AND id = ?").bind(tenant, String(to_id)).first();
+  if (!from || !to) throw new Error("endpoint_entity_missing");
   const now = new Date().toISOString();
   const propsJson = JSON.stringify(props && typeof props === "object" ? props : {});
-  await db.prepare("INSERT INTO ontology_relations (id, tenant, rel_type, from_id, to_id, props, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(rid, tenant, rt, String(from_id), String(to_id), propsJson, now).run();
+  await db.prepare(
+    "INSERT INTO ontology_relations (id, tenant, rel_type, from_id, to_id, props, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).bind(rid, tenant, rt, String(from_id), String(to_id), propsJson, now).run();
   return rid;
 }
 
@@ -85,21 +111,38 @@ function heuristicExtract(text) {
 async function listEntities(db, tenant, { type, q, limit = 20 } = {}) {
   const lim = Math.min(50, Math.max(1, Number(limit) || 20));
   if (type && q) {
-    return (await db.prepare("SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND type = ? AND name LIKE ? ORDER BY updated_at DESC LIMIT ?").bind(tenant, String(type).toLowerCase(), `%${String(q).slice(0, 100)}%`, lim).all()).results || [];
+    return (await db.prepare(
+      "SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND type = ? AND name LIKE ? ORDER BY updated_at DESC LIMIT ?"
+    ).bind(tenant, String(type).toLowerCase(), `%${String(q).slice(0, 100)}%`, lim).all()).results || [];
   }
   if (type) {
-    return (await db.prepare("SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND type = ? ORDER BY updated_at DESC LIMIT ?").bind(tenant, String(type).toLowerCase(), lim).all()).results || [];
+    return (await db.prepare(
+      "SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND type = ? ORDER BY updated_at DESC LIMIT ?"
+    ).bind(tenant, String(type).toLowerCase(), lim).all()).results || [];
   }
   if (q) {
-    return (await db.prepare("SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND name LIKE ? ORDER BY updated_at DESC LIMIT ?").bind(tenant, `%${String(q).slice(0, 100)}%`, lim).all()).results || [];
+    return (await db.prepare(
+      "SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND name LIKE ? ORDER BY updated_at DESC LIMIT ?"
+    ).bind(tenant, `%${String(q).slice(0, 100)}%`, lim).all()).results || [];
   }
-  return (await db.prepare("SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? ORDER BY updated_at DESC LIMIT ?").bind(tenant, lim).all()).results || [];
+  return (await db.prepare(
+    "SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? ORDER BY updated_at DESC LIMIT ?"
+  ).bind(tenant, lim).all()).results || [];
 }
 
+async function getEntity(db, tenant, id) {
+  const row = await db.prepare(
+    "SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND id = ?"
+  ).bind(tenant, id).first();
+  if (!row) return null;
+  return { ...row, props: safeParse(row.props, {}) };
+}
+
+/** BFS neighborhood up to depth 3 */
 async function queryGraph(db, tenant, { entity_id, direction = "both", rel_type, depth = 1, limit = 30 } = {}) {
   if (!entity_id) throw new Error("entity_id_required");
   const lim = Math.min(100, Math.max(1, Number(limit) || 30));
-  const d = Math.min(2, Math.max(1, Number(depth) || 1));
+  const d = Math.min(3, Math.max(1, Number(depth) || 1));
   const visited = new Set([entity_id]);
   const edges = [];
   let frontier = [entity_id];
@@ -131,10 +174,64 @@ async function queryGraph(db, tenant, { entity_id, direction = "both", rel_type,
   }
   const entities = [];
   for (const id of [...visited].slice(0, 80)) {
-    const row = await db.prepare("SELECT id, type, name, props, source, created_at, updated_at FROM ontology_entities WHERE tenant = ? AND id = ?").bind(tenant, id).first();
+    const row = await getEntity(db, tenant, id);
     if (row) entities.push(row);
   }
   return { root: entity_id, entities, relations: edges.slice(0, lim), depth: d };
+}
+
+/** Shortest path BFS (undirected) between two entities, max depth 6 */
+async function findPath(db, tenant, from_id, to_id, maxDepth = 6) {
+  if (!from_id || !to_id) throw new Error("from_id_and_to_id_required");
+  if (from_id === to_id) {
+    const e = await getEntity(db, tenant, from_id);
+    return { found: true, path: [from_id], hops: 0, entities: e ? [e] : [], relations: [] };
+  }
+  const maxD = Math.min(6, Math.max(1, Number(maxDepth) || 6));
+  const parent = new Map(); // node -> { prev, edge }
+  parent.set(from_id, null);
+  let frontier = [from_id];
+  let found = false;
+  for (let depth = 0; depth < maxD && !found; depth++) {
+    const next = [];
+    for (const eid of frontier) {
+      const out = (await db.prepare(
+        "SELECT * FROM ontology_relations WHERE tenant = ? AND from_id = ? LIMIT 50"
+      ).bind(tenant, eid).all()).results || [];
+      const inn = (await db.prepare(
+        "SELECT * FROM ontology_relations WHERE tenant = ? AND to_id = ? LIMIT 50"
+      ).bind(tenant, eid).all()).results || [];
+      for (const r of out.concat(inn)) {
+        const other = r.from_id === eid ? r.to_id : r.from_id;
+        if (parent.has(other)) continue;
+        parent.set(other, { prev: eid, edge: r });
+        if (other === to_id) { found = true; break; }
+        next.push(other);
+      }
+      if (found) break;
+    }
+    frontier = next;
+  }
+  if (!parent.has(to_id) || parent.get(to_id) === undefined && to_id !== from_id) {
+    if (!parent.has(to_id)) return { found: false, path: [], hops: -1, entities: [], relations: [] };
+  }
+  const path = [];
+  const relations = [];
+  let cur = to_id;
+  while (cur && cur !== from_id) {
+    path.unshift(cur);
+    const step = parent.get(cur);
+    if (!step) break;
+    relations.unshift(step.edge);
+    cur = step.prev;
+  }
+  path.unshift(from_id);
+  const entities = [];
+  for (const id of path) {
+    const e = await getEntity(db, tenant, id);
+    if (e) entities.push(e);
+  }
+  return { found: true, path, hops: path.length - 1, entities, relations };
 }
 
 export async function handleOntology(request, env, auth, cors = {}) {
@@ -146,13 +243,52 @@ export async function handleOntology(request, env, auth, cors = {}) {
   const db = env.ASTON_DB;
   try {
     await ensureOntologySchema(db);
+
+    if (method === "GET" && (path === "/v1/ontology" || path === "/v1/ontology/status")) {
+      const count = await db.prepare("SELECT COUNT(*) as c FROM ontology_entities WHERE tenant = ?").bind(tenant).first();
+      const relc = await db.prepare("SELECT COUNT(*) as c FROM ontology_relations WHERE tenant = ?").bind(tenant).first();
+      return json({
+        ok: true,
+        phase: "1-ontology",
+        version: VERSION,
+        tenant,
+        counts: { entities: count?.c || 0, relations: relc?.c || 0 },
+        entity_types: [...ENTITY_TYPES],
+        relation_types: [...REL_TYPES]
+      }, 200, cors);
+    }
+
     if (method === "GET" && path === "/v1/ontology/types") {
-      return json({ ok: true, entity_types: [...ENTITY_TYPES], relation_types: [...REL_TYPES], phase: "A" }, 200, cors);
+      return json({ ok: true, entity_types: [...ENTITY_TYPES], relation_types: [...REL_TYPES], phase: "1" }, 200, cors);
     }
+
     if (method === "GET" && path === "/v1/ontology/entities") {
-      const rows = await listEntities(db, tenant, { type: url.searchParams.get("type"), q: url.searchParams.get("q"), limit: url.searchParams.get("limit") });
-      return json({ ok: true, tenant, entities: rows }, 200, cors);
+      const rows = await listEntities(db, tenant, {
+        type: url.searchParams.get("type"),
+        q: url.searchParams.get("q"),
+        limit: url.searchParams.get("limit")
+      });
+      return json({
+        ok: true,
+        tenant,
+        entities: rows.map((r) => ({ ...r, props: safeParse(r.props, {}) }))
+      }, 200, cors);
     }
+
+    // GET /v1/ontology/entities/:id
+    if (method === "GET" && /^\/v1\/ontology\/entities\/[^/]+$/.test(path)) {
+      const id = path.split("/").pop();
+      const entity = await getEntity(db, tenant, id);
+      if (!entity) return json({ ok: false, error: "not_found" }, 404, cors);
+      const out = (await db.prepare(
+        "SELECT id, rel_type, to_id, props, created_at FROM ontology_relations WHERE tenant = ? AND from_id = ? LIMIT 50"
+      ).bind(tenant, id).all()).results || [];
+      const inn = (await db.prepare(
+        "SELECT id, rel_type, from_id, props, created_at FROM ontology_relations WHERE tenant = ? AND to_id = ? LIMIT 50"
+      ).bind(tenant, id).all()).results || [];
+      return json({ ok: true, entity, relations: { out, in: inn } }, 200, cors);
+    }
+
     if (method === "POST" && path === "/v1/ontology/entities") {
       const body = await readJson(request);
       if (!body || typeof body !== "object") return json({ ok: false, error: "json_object_required" }, 400, cors);
@@ -165,6 +301,7 @@ export async function handleOntology(request, env, auth, cors = {}) {
       } catch (_) {}
       return json({ ok: true, tenant, ids }, 200, cors);
     }
+
     if (method === "POST" && path === "/v1/ontology/relations") {
       const body = await readJson(request);
       if (!body || typeof body !== "object") return json({ ok: false, error: "json_object_required" }, 400, cors);
@@ -173,6 +310,7 @@ export async function handleOntology(request, env, auth, cors = {}) {
       for (const item of items.slice(0, 50)) ids.push(await createRelation(db, tenant, item));
       return json({ ok: true, tenant, ids }, 200, cors);
     }
+
     if (method === "GET" && path === "/v1/ontology/query") {
       try {
         const graph = await queryGraph(db, tenant, {
@@ -187,6 +325,39 @@ export async function handleOntology(request, env, auth, cors = {}) {
         return json({ ok: false, error: String(e?.message || e) }, 400, cors);
       }
     }
+
+    // Neighbors = query depth 1
+    if (method === "GET" && path === "/v1/ontology/neighbors") {
+      try {
+        const graph = await queryGraph(db, tenant, {
+          entity_id: url.searchParams.get("entity_id"),
+          direction: url.searchParams.get("direction") || "both",
+          rel_type: url.searchParams.get("rel_type"),
+          depth: 1,
+          limit: url.searchParams.get("limit") || 50
+        });
+        return json({ ok: true, tenant, mode: "neighbors", ...graph }, 200, cors);
+      } catch (e) {
+        return json({ ok: false, error: String(e?.message || e) }, 400, cors);
+      }
+    }
+
+    // Shortest path
+    if (method === "GET" && path === "/v1/ontology/path") {
+      try {
+        const result = await findPath(
+          db,
+          tenant,
+          url.searchParams.get("from") || url.searchParams.get("from_id"),
+          url.searchParams.get("to") || url.searchParams.get("to_id"),
+          url.searchParams.get("max_depth")
+        );
+        return json({ ok: true, tenant, ...result }, 200, cors);
+      } catch (e) {
+        return json({ ok: false, error: String(e?.message || e) }, 400, cors);
+      }
+    }
+
     if (method === "POST" && path === "/v1/ontology/extract") {
       const body = await readJson(request);
       const text = String(body?.text || "").trim();
@@ -216,8 +387,9 @@ export async function handleOntology(request, env, auth, cors = {}) {
           try { ids.push(await upsertEntity(db, tenant, { ...ent, source: body?.source || "extract" })); } catch (_) {}
         }
       }
-      return json({ ok: true, tenant, extracted, persisted_ids: ids, phase: "A" }, 200, cors);
+      return json({ ok: true, tenant, extracted, persisted_ids: ids, phase: "1" }, 200, cors);
     }
+
     if (method === "POST" && path === "/v1/ontology/warm" && env.ASTON_ONTOLOGY) {
       const stub = env.ASTON_ONTOLOGY.get(env.ASTON_ONTOLOGY.idFromName(`ont:${tenant}`));
       return stub.fetch(new Request("https://ontology.internal/warm", {
@@ -226,6 +398,7 @@ export async function handleOntology(request, env, auth, cors = {}) {
         body: JSON.stringify({ tenant })
       }));
     }
+
     return json({ ok: false, error: "not_found", path }, 404, cors);
   } catch (e) {
     console.error("ontology handler", e?.message || e);
@@ -247,7 +420,12 @@ export class AstonOntology {
       return json({ ok: true, tenant, cached: rows.length });
     }
     if (request.method === "GET") {
-      return json({ ok: true, tenant, recent: (await this.ctx.storage.get("recent")) || [], warmed_at: (await this.ctx.storage.get("warmed_at")) || null });
+      return json({
+        ok: true,
+        tenant,
+        recent: (await this.ctx.storage.get("recent")) || [],
+        warmed_at: (await this.ctx.storage.get("warmed_at")) || null
+      });
     }
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }
