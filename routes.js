@@ -1,6 +1,6 @@
 /**
  * ASTON OS routes
- * Phase 1 Ontology · Phase 2 AIP · Phase 3 Security · Phase 4 Pipelines
+ * Phases 1–6: Ontology · AIP · Security · Pipelines · Foundry ACL · Ops UI
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -21,6 +21,7 @@ import { handleReceipts } from "./receipts.js";
 import { handleAip } from "./aip.js";
 import { handlePipelines } from "./pipelines.js";
 import { authenticate } from "./auth.js";
+import { checkTenantRateLimit, rateLimitResponse, handleRateLimitStatus } from "./rate_limit.js";
 
 export async function handleRequest(request, env, ctx, path, method, cors, json) {
   const locked = await sovereignGate(request, env, path, cors);
@@ -45,12 +46,31 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     path.startsWith("/v1/cases") ||
     path.startsWith("/v1/receipts") ||
     path.startsWith("/v1/aip") ||
-    path.startsWith("/v1/pipelines")
+    path.startsWith("/v1/pipelines") ||
+    path.startsWith("/v1/ops")
   ) {
     const auth = await authenticate(request, env);
     if (!auth) {
       return json({ ok: false, error: "unauthorized", hint: "Authorization: Bearer <ASTON_API_TOKEN>" }, 401, cors);
     }
+
+    // Phase 6: tenant rate limit (skip status endpoint counting soft)
+    if (!(method === "GET" && path === "/v1/ops/rate-limit")) {
+      const rl = await checkTenantRateLimit(request, env, auth.tenant);
+      if (!rl.allowed) return rateLimitResponse(rl, cors, json);
+    }
+
+    if (path.startsWith("/v1/ops")) {
+      if (method === "GET" && (path === "/v1/ops/rate-limit" || path === "/v1/ops/status")) {
+        return handleRateLimitStatus(request, env, auth, cors, json);
+      }
+      return json({
+        ok: true,
+        phase: "6-ops",
+        endpoints: ["GET /v1/ops/rate-limit", "GET /v1/ops/status"]
+      }, 200, cors);
+    }
+
     if (path.startsWith("/v1/ontology")) return handleOntology(request, env, auth, cors);
     if (path.startsWith("/v1/orchestrator")) return handleOrchestrator(request, env, auth, cors);
     if (path.startsWith("/v1/cases")) return handleCases(request, env, auth, cors);
@@ -73,27 +93,27 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     return json(
       {
         ok: true,
-        phase: "4-security-pipelines",
-        version: "11.7.0",
+        phase: "6-ops-ui",
+        version: "11.9.0",
         pillars: {
           ontology: true,
           foundry: true,
           aip: true,
           security: true,
           pipelines: true,
+          rate_limit: true,
+          ui: true,
           connectors: true,
           ai: true
         },
         routes: {
-          pipelines: [
-            "GET /v1/pipelines/catalog",
-            "POST /v1/pipelines/run",
-            "POST /v1/pipelines/run/:template_id",
-            "GET /v1/pipelines/runs"
-          ],
-          security: ["GET /v1/security/status", "POST /v1/security/markings"],
+          ui: ["GET /ui", "GET /ui/studio"],
+          ops: ["GET /v1/ops/rate-limit"],
+          pipelines: ["POST /v1/pipelines/run"],
+          security: ["GET /v1/security/status"],
           aip: ["POST /v1/aip/plan"],
-          ontology: ["GET /v1/ontology/entities"]
+          ontology: ["GET /v1/ontology/entities"],
+          foundry: ["GET /v1/foundry", "GET /v1/search"]
         }
       },
       200,

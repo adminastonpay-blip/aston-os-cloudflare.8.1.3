@@ -1,7 +1,7 @@
 /**
- * ASTON OS 11.8.0 — Phase 5 Foundry OLS
+ * ASTON OS 11.9.0 — Phase 6 Ops UI + tenant rate limits
  */
-const VERSION = "11.8.0";
+const VERSION = "11.9.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -45,8 +45,10 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "5-foundry-acl",
+          phase: "6-ops-ui",
           capabilities: "/v1/capabilities",
+          ui: "/ui",
+          ops: "/v1/ops/rate-limit",
           foundry: "/v1/foundry",
           pipelines: "/v1/pipelines/catalog",
           security: "/v1/security/status",
@@ -119,14 +121,15 @@ export class AstonRateLimiter {
     this.env = env;
   }
   async fetch(request) {
+    const body = await request.json().catch(() => ({}));
+    const limit = Number(body.limit || this.env.RATE_LIMIT_PER_MINUTE || 120);
     const key = `count:${Math.floor(Date.now() / 60000)}`;
     const count = (await this.state.storage.get(key)) || 0;
-    const limit = Number(this.env.RATE_LIMIT_PER_MINUTE || 120);
     if (count >= limit) {
-      return json({ ok: false, error: "rate_limited" }, 429, { "retry-after": "60" });
+      return json({ ok: false, error: "rate_limited", remaining: 0 }, 429, { "retry-after": "60" });
     }
     await this.state.storage.put(key, count + 1);
-    return json({ ok: true, remaining: limit - count - 1 });
+    return json({ ok: true, remaining: limit - count - 1, limit });
   }
 }
 
