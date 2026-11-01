@@ -1,10 +1,11 @@
-// ASTON OS — Phase 4 Security Pipelines
+// ASTON OS — Phase 4 Security Pipelines + Phase 9.1 auto-emit
 // Declarative stages: ingest → classify/mark → ACL → ontology upsert → optional AIP/HITL
 
 import { setResourceMarking, grantAcl, ensureObjectAclSchema } from "./object_acl.js";
 import { issueTruthReceipt } from "./receipts.js";
+import { emitChangeEvent } from "./events_feed.js";
 
-const VERSION = "11.7.0";
+const VERSION = "12.2.1";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -86,13 +87,13 @@ async function upsertEntity(db, tenant, { type, name, props, source }) {
     await db.prepare(
       "UPDATE ontology_entities SET props = ?, source = COALESCE(?, source), updated_at = ? WHERE tenant = ? AND id = ?"
     ).bind(JSON.stringify(props || {}), source || null, now, tenant, existing.id).run();
-    return existing.id;
+    return { id: existing.id, created: false };
   }
   const id = slugId("ent");
   await db.prepare(
     "INSERT INTO ontology_entities (id, tenant, type, name, props, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
   ).bind(id, tenant, etype, ename, JSON.stringify(props || {}), source || null, now, now).run();
-  return id;
+  return { id, created: true };
 }
 
 function normalizeItems(rawItems, defaults = {}) {
@@ -159,12 +160,22 @@ async function runStages(env, auth, templateId, config, body) {
         stagesLog.push({ stage, ok: true, ms: Date.now() - t0, count: items.length });
       } else if (stage === "upsert_entities") {
         for (const it of items) {
-          const id = await upsertEntity(db, tenant, {
+          const result = await upsertEntity(db, tenant, {
             type: it.type, name: it.name, props: it.props, source
           });
-          if (id) {
-            it._entity_id = id;
+          if (result?.id) {
+            it._entity_id = result.id;
             stats.entities++;
+            try {
+              await emitChangeEvent(env, {
+                tenant,
+                event: result.created ? "entity.created" : "entity.updated",
+                resource_kind: "entity",
+                resource_id: result.id,
+                payload: { type: it.type, name: it.name, source, via: "pipeline" },
+                actor
+              });
+            } catch (_) {}
           }
           // optional record
           try {
@@ -271,8 +282,9 @@ export async function handlePipelines(request, env, auth, cors = {}) {
   if (method === "GET" && (path === "/v1/pipelines" || path === "/v1/pipelines/status" || path === "/v1/pipelines/catalog")) {
     return json({
       ok: true,
-      phase: "4-security-pipelines",
+      phase: "4-security-pipelines+9.1-auto-emit",
       version: VERSION,
+      auto_emit: true,
       catalog: PIPELINE_CATALOG,
       endpoints: {
         catalog: "GET /v1/pipelines/catalog",
@@ -338,9 +350,25 @@ export async function handlePipelines(request, env, auth, cors = {}) {
         runId
       ).run();
 
+      try {
+        await emitChangeEvent(env, {
+          tenant,
+          event: "pipeline.completed",
+          resource_kind: "pipeline_run",
+          resource_id: runId,
+          payload: {
+            template_id: templateId,
+            stats: result.stats,
+            entity_ids: result.entity_ids?.slice(0, 50) || [],
+            marking: result.marking
+          },
+          actor
+        });
+      } catch (_) {}
+
       return json({
         ok: true,
-        phase: "4-security-pipelines",
+        phase: "4-security-pipelines+9.1-auto-emit",
         run_id: runId,
         template_id: templateId,
         ...result
@@ -349,6 +377,16 @@ export async function handlePipelines(request, env, auth, cors = {}) {
       await db.prepare(
         "UPDATE pipeline_runs SET status = ?, error = ?, finished_at = ? WHERE id = ?"
       ).bind("failed", String(e.message || e).slice(0, 500), new Date().toISOString(), runId).run();
+      try {
+        await emitChangeEvent(env, {
+          tenant,
+          event: "pipeline.failed",
+          resource_kind: "pipeline_run",
+          resource_id: runId,
+          payload: { template_id: templateId, error: String(e.message || e).slice(0, 200) },
+          actor
+        });
+      } catch (_) {}
       return json({
         ok: false,
         error: "pipeline_failed",

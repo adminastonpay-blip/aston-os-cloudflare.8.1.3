@@ -1,5 +1,5 @@
 /**
- * ASTON OS routes — Phases 1–9
+ * ASTON OS routes — Phases 1–9.1
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -140,8 +140,8 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     return json(
       {
         ok: true,
-        phase: "9-webhooks-feed",
-        version: "12.2.0",
+        phase: "9.1-auto-emit",
+        version: "12.2.1",
         pillars: {
           ontology: true,
           foundry: true,
@@ -152,13 +152,15 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
           lineage: true,
           webhooks: true,
           change_feed: true,
+          auto_emit: true,
           ui: true
         },
         routes: {
           events: ["GET /v1/events/feed", "POST /v1/events/emit"],
           webhooks: ["GET|POST /v1/webhooks", "POST /v1/webhooks/:id/test"],
           audit: ["POST /v1/audit/export"],
-          metrics: ["GET /v1/metrics/summary"]
+          metrics: ["GET /v1/metrics/summary"],
+          auto_emit_sources: ["ontology", "aip", "pipelines"]
         }
       },
       200,

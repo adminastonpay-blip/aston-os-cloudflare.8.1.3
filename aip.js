@@ -1,10 +1,11 @@
-// ASTON OS — Phase 2 AIP-lite (Palantir AIP style)
+// ASTON OS — Phase 2 AIP-lite (Palantir AIP style) + Phase 9.1 auto-emit
 // Plan → Human-in-the-Loop approve → Execute agents → Truth Receipt
 
 import { handleOrchestrator } from "./orchestrator.js";
 import { issueTruthReceipt } from "./receipts.js";
+import { emitChangeEvent } from "./events_feed.js";
 
-const VERSION = "11.5.0";
+const VERSION = "12.2.1";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -66,8 +67,9 @@ export async function handleAip(request, env, auth, cors = {}) {
   if (method === "GET" && (path === "/v1/aip" || path === "/v1/aip/status")) {
     return json({
       ok: true,
-      phase: "2-aip",
+      phase: "2-aip+9.1-auto-emit",
       version: VERSION,
+      auto_emit: true,
       flow: ["POST /v1/aip/plan", "POST /v1/aip/plans/:id/approve|reject", "POST /v1/aip/plans/:id/execute"],
       also: {
         orchestrator: "POST /v1/orchestrator/run",
@@ -75,7 +77,7 @@ export async function handleAip(request, env, auth, cors = {}) {
         receipts: "GET /v1/receipts/list",
         swarm: "POST /v1/swarm/run"
       },
-      note: "HITL: high-impact goals should use plan → approve → execute"
+      note: "HITL: high-impact goals should use plan → approve → execute; events: aip.plan.*"
     }, 200, cors);
   }
 
@@ -144,6 +146,17 @@ export async function handleAip(request, env, auth, cors = {}) {
       });
     } catch (_) {}
 
+    try {
+      await emitChangeEvent(env, {
+        tenant,
+        event: "aip.plan.proposed",
+        resource_kind: "aip_plan",
+        resource_id: id,
+        payload: { goal: goal.slice(0, 300), roles, status: "pending_approval" },
+        actor
+      });
+    } catch (_) {}
+
     // Optional: auto-approve + execute if require_approval false
     if (body?.require_approval === false) {
       return executePlan(env, auth, cors, id, { note: "auto_approved_no_hitl" });
@@ -191,6 +204,17 @@ export async function handleAip(request, env, auth, cors = {}) {
       });
     } catch (_) {}
 
+    try {
+      await emitChangeEvent(env, {
+        tenant,
+        event: "aip.plan.approved",
+        resource_kind: "aip_plan",
+        resource_id: id,
+        payload: { goal: row.goal?.slice(0, 300), decided_by: actor, note: body.note || null },
+        actor
+      });
+    } catch (_) {}
+
     let planMeta = {};
     try { planMeta = JSON.parse(row.plan_json || "{}"); } catch (_) {}
     if (planMeta.auto_execute_on_approve !== false && body.execute !== false) {
@@ -222,6 +246,16 @@ export async function handleAip(request, env, auth, cors = {}) {
         summary: row.goal?.slice(0, 300),
         input: { plan_id: id },
         output: { note: body.note || null }
+      });
+    } catch (_) {}
+    try {
+      await emitChangeEvent(env, {
+        tenant,
+        event: "aip.plan.rejected",
+        resource_kind: "aip_plan",
+        resource_id: id,
+        payload: { goal: row.goal?.slice(0, 300), note: body.note || null },
+        actor
       });
     } catch (_) {}
     return json({ ok: true, plan_id: id, status: "rejected" }, 200, cors);
@@ -277,6 +311,17 @@ async function executePlan(env, auth, cors, planId, opts = {}) {
   await db.prepare("UPDATE aip_plans SET status = 'running', updated_at = ? WHERE tenant = ? AND id = ?")
     .bind(now, tenant, planId).run();
 
+  try {
+    await emitChangeEvent(env, {
+      tenant,
+      event: "aip.plan.executing",
+      resource_kind: "aip_plan",
+      resource_id: planId,
+      payload: { goal: row.goal?.slice(0, 300), status: "running" },
+      actor
+    });
+  } catch (_) {}
+
   let roles = [];
   try { roles = JSON.parse(row.roles || "[]"); } catch (_) {}
 
@@ -298,6 +343,16 @@ async function executePlan(env, auth, cors, planId, opts = {}) {
     await db.prepare(
       "UPDATE aip_plans SET status = 'failed', result = ?, updated_at = ? WHERE tenant = ? AND id = ?"
     ).bind(JSON.stringify(orchData).slice(0, 4000), new Date().toISOString(), tenant, planId).run();
+    try {
+      await emitChangeEvent(env, {
+        tenant,
+        event: "aip.plan.failed",
+        resource_kind: "aip_plan",
+        resource_id: planId,
+        payload: { error: "orchestrator_failed" },
+        actor
+      });
+    } catch (_) {}
     return json({ ok: false, error: "orchestrator_failed", detail: orchData }, 500, cors);
   }
 
@@ -351,9 +406,25 @@ async function executePlan(env, auth, cors, planId, opts = {}) {
     });
   } catch (_) {}
 
+  try {
+    await emitChangeEvent(env, {
+      tenant,
+      event: "aip.plan.executed",
+      resource_kind: "aip_plan",
+      resource_id: planId,
+      payload: {
+        goal: row.goal?.slice(0, 300),
+        orchestrator_run_id: orchData.run_id || null,
+        case_id: caseId,
+        receipt_id: receiptId
+      },
+      actor
+    });
+  } catch (_) {}
+
   return json({
     ok: true,
-    phase: "2-aip",
+    phase: "2-aip+9.1-auto-emit",
     plan_id: planId,
     status: "done",
     orchestrator_run_id: orchData.run_id,
