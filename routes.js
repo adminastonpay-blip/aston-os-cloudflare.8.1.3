@@ -1,5 +1,5 @@
 /**
- * ASTON OS routes — Phases 1–8
+ * ASTON OS routes — Phases 1–9
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -23,6 +23,7 @@ import { authenticate } from "./auth.js";
 import { checkTenantRateLimit, rateLimitResponse, handleRateLimitStatus } from "./rate_limit.js";
 import { handleMetrics, recordMetric } from "./metrics.js";
 import { handleLineageAudit } from "./lineage_audit.js";
+import { handleEventsFeed } from "./events_feed.js";
 
 export async function handleRequest(request, env, ctx, path, method, cors, json) {
   const locked = await sovereignGate(request, env, path, cors);
@@ -56,14 +57,23 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     path.startsWith("/v1/ops") ||
     path.startsWith("/v1/metrics") ||
     path.startsWith("/v1/lineage") ||
-    path.startsWith("/v1/audit")
+    path.startsWith("/v1/audit") ||
+    path.startsWith("/v1/events") ||
+    path.startsWith("/v1/webhooks")
   ) {
     const auth = await authenticate(request, env);
     if (!auth) {
       return json({ ok: false, error: "unauthorized", hint: "Authorization: Bearer <ASTON_API_TOKEN>" }, 401, cors);
     }
 
-    if (!(method === "GET" && (path === "/v1/ops/rate-limit" || path.startsWith("/v1/metrics") || path.startsWith("/v1/lineage") || path.startsWith("/v1/audit")))) {
+    const skipRl =
+      method === "GET" &&
+      (path === "/v1/ops/rate-limit" ||
+        path.startsWith("/v1/metrics") ||
+        path.startsWith("/v1/lineage") ||
+        path.startsWith("/v1/audit") ||
+        path.startsWith("/v1/events/feed"));
+    if (!skipRl) {
       const rl = await checkTenantRateLimit(request, env, auth.tenant);
       if (!rl.allowed) return rateLimitResponse(rl, cors, json);
     }
@@ -71,7 +81,9 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     const t0 = Date.now();
     let response;
 
-    if (path.startsWith("/v1/lineage") || path.startsWith("/v1/audit")) {
+    if (path.startsWith("/v1/events") || path.startsWith("/v1/webhooks")) {
+      response = await handleEventsFeed(request, env, auth, cors);
+    } else if (path.startsWith("/v1/lineage") || path.startsWith("/v1/audit")) {
       response = await handleLineageAudit(request, env, auth, cors);
     } else if (path.startsWith("/v1/metrics")) {
       response = await handleMetrics(request, env, auth, cors);
@@ -79,7 +91,7 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
       if (method === "GET" && (path === "/v1/ops/rate-limit" || path === "/v1/ops/status")) {
         response = await handleRateLimitStatus(request, env, auth, cors, json);
       } else {
-        response = json({ ok: true, phase: "6-ops", endpoints: ["GET /v1/ops/rate-limit", "GET /v1/metrics/summary"] }, 200, cors);
+        response = json({ ok: true, phase: "6-ops" }, 200, cors);
       }
     } else if (path.startsWith("/v1/ontology")) {
       response = await handleOntology(request, env, auth, cors);
@@ -128,8 +140,8 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     return json(
       {
         ok: true,
-        phase: "8-lineage-audit",
-        version: "12.1.0",
+        phase: "9-webhooks-feed",
+        version: "12.2.0",
         pillars: {
           ontology: true,
           foundry: true,
@@ -138,12 +150,14 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
           pipelines: true,
           metrics: true,
           lineage: true,
-          audit_export: true,
+          webhooks: true,
+          change_feed: true,
           ui: true
         },
         routes: {
-          lineage: ["GET /v1/lineage/subject/:id", "POST /v1/lineage/record"],
-          audit: ["POST /v1/audit/export", "GET /v1/audit/packages"],
+          events: ["GET /v1/events/feed", "POST /v1/events/emit"],
+          webhooks: ["GET|POST /v1/webhooks", "POST /v1/webhooks/:id/test"],
+          audit: ["POST /v1/audit/export"],
           metrics: ["GET /v1/metrics/summary"]
         }
       },

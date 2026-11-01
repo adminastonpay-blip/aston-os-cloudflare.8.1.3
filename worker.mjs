@@ -1,7 +1,7 @@
 /**
- * ASTON OS 12.1.0 — Phase 8 Lineage & Audit
+ * ASTON OS 12.2.0 — Phase 9 Webhooks + Change Feed
  */
-const VERSION = "12.1.0";
+const VERSION = "12.2.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -45,10 +45,11 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "8-lineage-audit",
+          phase: "9-webhooks-feed",
           capabilities: "/v1/capabilities",
+          events: "/v1/events/feed",
+          webhooks: "/v1/webhooks",
           lineage: "/v1/lineage",
-          audit: "/v1/audit/export",
           metrics: "/v1/metrics/summary",
           ui: "/ui",
           ontology: "/v1/ontology",
