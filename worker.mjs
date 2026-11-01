@@ -1,8 +1,8 @@
 /**
- * ASTON OS 11.4.0 — MAIN (.mjs = always ES module for Wrangler)
- * Phase 1: Ontology + Foundry routes wired via routes.js
+ * ASTON OS 11.5.0 — MAIN (.mjs = always ES module for Wrangler)
+ * Phase 1: Ontology + Foundry | Phase 2: AIP HITL
  */
-const VERSION = "11.4.0";
+const VERSION = "11.5.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -46,10 +46,12 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "1-ontology",
+          phase: "2-aip",
           capabilities: "/v1/capabilities",
+          aip: "/v1/aip",
           ontology: "/v1/ontology",
           foundry: "/v1/foundry",
+          orchestrator: "/v1/orchestrator",
           differentiators: "/v1/native/capabilities",
           sovereign: "/v1/sovereign/status",
           billing: "/v1/billing/rate-card"
