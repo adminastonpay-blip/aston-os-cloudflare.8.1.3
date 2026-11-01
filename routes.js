@@ -1,7 +1,6 @@
 /**
- * ASTON OS routes — loaded via dynamic import() from worker entry
- * Phase 1: Ontology + Foundry
- * Phase 2: AIP / orchestrator / cases / receipts
+ * ASTON OS routes
+ * Phase 1 Ontology · Phase 2 AIP · Phase 3 Security
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -37,7 +36,6 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     if (res) return res;
   }
 
-  // ---- Phase 1 + 2 authenticated surface ----
   if (
     path.startsWith("/v1/ontology") ||
     path.startsWith("/v1/foundry") ||
@@ -72,8 +70,8 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     return json(
       {
         ok: true,
-        phase: "2-aip",
-        version: "11.5.0",
+        phase: "3-security",
+        version: "11.6.0",
         pillars: {
           ontology: true,
           foundry: true,
@@ -82,27 +80,23 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
           cases: true,
           receipts: true,
           security: true,
+          object_acl: true,
+          data_markings: true,
           connectors: true,
           ai: true
         },
         routes: {
-          aip: [
-            "GET /v1/aip/status",
-            "POST /v1/aip/plan",
-            "GET /v1/aip/plans",
-            "POST /v1/aip/plans/:id/approve",
-            "POST /v1/aip/plans/:id/reject",
-            "POST /v1/aip/plans/:id/execute"
+          security: [
+            "GET /v1/security/status",
+            "GET /v1/security/whoami",
+            "GET|POST /v1/security/acl",
+            "GET|POST /v1/security/markings",
+            "POST /v1/security/access/check",
+            "POST /v1/security/als/preview"
           ],
-          orchestrator: [
-            "GET /v1/orchestrator/roles",
-            "POST /v1/orchestrator/run",
-            "GET /v1/orchestrator/runs"
-          ],
-          cases: ["GET /v1/cases", "POST /v1/cases", "GET /v1/cases/playbooks"],
-          receipts: ["GET /v1/receipts", "GET /v1/receipts/list", "POST /v1/receipts/verify"],
-          ontology: ["GET /v1/ontology", "GET /v1/ontology/entities", "GET /v1/ontology/path"],
-          foundry: ["GET /v1/foundry", "GET /v1/foundry/types", "GET /v1/search"]
+          aip: ["POST /v1/aip/plan", "POST /v1/aip/plans/:id/approve"],
+          ontology: ["GET /v1/ontology", "GET /v1/ontology/entities"],
+          foundry: ["GET /v1/foundry", "GET /v1/search"]
         }
       },
       200,
