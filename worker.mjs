@@ -1,7 +1,7 @@
 /**
- * ASTON OS 11.9.0 — Phase 6 Ops UI + tenant rate limits
+ * ASTON OS 12.0.0 — Phase 7 Observability
  */
-const VERSION = "11.9.0";
+const VERSION = "12.0.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -45,8 +45,9 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "6-ops-ui",
+          phase: "7-observability",
           capabilities: "/v1/capabilities",
+          metrics: "/v1/metrics/summary",
           ui: "/ui",
           ops: "/v1/ops/rate-limit",
           foundry: "/v1/foundry",
