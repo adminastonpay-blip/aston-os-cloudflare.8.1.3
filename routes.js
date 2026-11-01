@@ -1,5 +1,5 @@
 /**
- * ASTON OS routes — Phases 1–7
+ * ASTON OS routes — Phases 1–8
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -22,6 +22,7 @@ import { handlePipelines } from "./pipelines.js";
 import { authenticate } from "./auth.js";
 import { checkTenantRateLimit, rateLimitResponse, handleRateLimitStatus } from "./rate_limit.js";
 import { handleMetrics, recordMetric } from "./metrics.js";
+import { handleLineageAudit } from "./lineage_audit.js";
 
 export async function handleRequest(request, env, ctx, path, method, cors, json) {
   const locked = await sovereignGate(request, env, path, cors);
@@ -36,7 +37,6 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
   ) {
     const res = handleUI(request, env, path);
     if (res) {
-      // best-effort metric for UI
       if (ctx?.waitUntil) {
         ctx.waitUntil(recordMetric(env, { tenant: "public", path, method, status: 200, ms: 0 }));
       }
@@ -54,14 +54,16 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     path.startsWith("/v1/aip") ||
     path.startsWith("/v1/pipelines") ||
     path.startsWith("/v1/ops") ||
-    path.startsWith("/v1/metrics")
+    path.startsWith("/v1/metrics") ||
+    path.startsWith("/v1/lineage") ||
+    path.startsWith("/v1/audit")
   ) {
     const auth = await authenticate(request, env);
     if (!auth) {
       return json({ ok: false, error: "unauthorized", hint: "Authorization: Bearer <ASTON_API_TOKEN>" }, 401, cors);
     }
 
-    if (!(method === "GET" && (path === "/v1/ops/rate-limit" || path.startsWith("/v1/metrics")))) {
+    if (!(method === "GET" && (path === "/v1/ops/rate-limit" || path.startsWith("/v1/metrics") || path.startsWith("/v1/lineage") || path.startsWith("/v1/audit")))) {
       const rl = await checkTenantRateLimit(request, env, auth.tenant);
       if (!rl.allowed) return rateLimitResponse(rl, cors, json);
     }
@@ -69,17 +71,15 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     const t0 = Date.now();
     let response;
 
-    if (path.startsWith("/v1/metrics")) {
+    if (path.startsWith("/v1/lineage") || path.startsWith("/v1/audit")) {
+      response = await handleLineageAudit(request, env, auth, cors);
+    } else if (path.startsWith("/v1/metrics")) {
       response = await handleMetrics(request, env, auth, cors);
     } else if (path.startsWith("/v1/ops")) {
       if (method === "GET" && (path === "/v1/ops/rate-limit" || path === "/v1/ops/status")) {
         response = await handleRateLimitStatus(request, env, auth, cors, json);
       } else {
-        response = json({
-          ok: true,
-          phase: "6-ops",
-          endpoints: ["GET /v1/ops/rate-limit", "GET /v1/metrics/summary"]
-        }, 200, cors);
+        response = json({ ok: true, phase: "6-ops", endpoints: ["GET /v1/ops/rate-limit", "GET /v1/metrics/summary"] }, 200, cors);
       }
     } else if (path.startsWith("/v1/ontology")) {
       response = await handleOntology(request, env, auth, cors);
@@ -100,26 +100,11 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     const ms = Date.now() - t0;
     const status = response?.status || 200;
     if (ctx?.waitUntil) {
-      ctx.waitUntil(recordMetric(env, {
-        tenant: auth.tenant,
-        path,
-        method,
-        status,
-        ms,
-        actor: auth.actor
-      }));
+      ctx.waitUntil(recordMetric(env, { tenant: auth.tenant, path, method, status, ms, actor: auth.actor }));
     } else {
-      await recordMetric(env, {
-        tenant: auth.tenant,
-        path,
-        method,
-        status,
-        ms,
-        actor: auth.actor
-      });
+      await recordMetric(env, { tenant: auth.tenant, path, method, status, ms, actor: auth.actor });
     }
 
-    // Annotate latency header
     try {
       const headers = new Headers(response.headers);
       headers.set("x-aston-ms", String(ms));
@@ -143,27 +128,23 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     return json(
       {
         ok: true,
-        phase: "7-observability",
-        version: "12.0.0",
+        phase: "8-lineage-audit",
+        version: "12.1.0",
         pillars: {
           ontology: true,
           foundry: true,
           aip: true,
           security: true,
           pipelines: true,
-          rate_limit: true,
           metrics: true,
-          ui: true,
-          ai: true
+          lineage: true,
+          audit_export: true,
+          ui: true
         },
         routes: {
-          metrics: [
-            "GET /v1/metrics/summary",
-            "GET /v1/metrics/hourly",
-            "GET /v1/metrics/recent"
-          ],
-          ops: ["GET /v1/ops/rate-limit"],
-          ui: ["GET /ui"]
+          lineage: ["GET /v1/lineage/subject/:id", "POST /v1/lineage/record"],
+          audit: ["POST /v1/audit/export", "GET /v1/audit/packages"],
+          metrics: ["GET /v1/metrics/summary"]
         }
       },
       200,

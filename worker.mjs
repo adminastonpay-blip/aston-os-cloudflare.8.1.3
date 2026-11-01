@@ -1,7 +1,7 @@
 /**
- * ASTON OS 12.0.0 — Phase 7 Observability
+ * ASTON OS 12.1.0 — Phase 8 Lineage & Audit
  */
-const VERSION = "12.0.0";
+const VERSION = "12.1.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -45,14 +45,12 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "7-observability",
+          phase: "8-lineage-audit",
           capabilities: "/v1/capabilities",
+          lineage: "/v1/lineage",
+          audit: "/v1/audit/export",
           metrics: "/v1/metrics/summary",
           ui: "/ui",
-          ops: "/v1/ops/rate-limit",
-          foundry: "/v1/foundry",
-          pipelines: "/v1/pipelines/catalog",
-          security: "/v1/security/status",
           ontology: "/v1/ontology",
           aip: "/v1/aip"
         },
