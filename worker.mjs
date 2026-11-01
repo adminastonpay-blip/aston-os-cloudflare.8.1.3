@@ -1,7 +1,7 @@
 /**
- * ASTON OS 11.7.0 — Phase 4 Security Pipelines
+ * ASTON OS 11.8.0 — Phase 5 Foundry OLS
  */
-const VERSION = "11.7.0";
+const VERSION = "11.8.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -45,8 +45,9 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "4-security-pipelines",
+          phase: "5-foundry-acl",
           capabilities: "/v1/capabilities",
+          foundry: "/v1/foundry",
           pipelines: "/v1/pipelines/catalog",
           security: "/v1/security/status",
           ontology: "/v1/ontology",
