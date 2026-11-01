@@ -1,7 +1,21 @@
-// ASTON OS — Phase 3: Enterprise Fine-Grained Security & RBAC
-// OLS/ALS · Multi-tenant isolation · SSO (OIDC / JWT enterprise)
+// ASTON OS — Phase 3: Enterprise Fine-Grained Security
+// OLS / ALS · Object ACL · Data markings · Multi-tenant · SSO JWT
 
-const VERSION = "10.8.0";
+import {
+  ensureObjectAclSchema,
+  MARKINGS,
+  ROLE_CLEARANCE,
+  clearanceOf,
+  grantAcl,
+  listAcl,
+  setResourceMarking,
+  getResourceMarking,
+  checkObjectAccess,
+  canClearance,
+  redactByRole
+} from "./object_acl.js";
+
+const VERSION = "11.6.0";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), {
@@ -44,6 +58,7 @@ export async function ensureSecuritySchema(db) {
       resource TEXT, detail TEXT, created_at TEXT NOT NULL)`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_sec_audit ON security_audit (tenant, created_at)")
   ]);
+  await ensureObjectAclSchema(db);
 }
 
 export function enforceTenant(auth, resourceTenant) {
@@ -140,19 +155,29 @@ export function mapSsoClaims(payload, claimMap = {}) {
     compliance: ["read", "ai", "ontology:read", "cases:read", "cases:write", "audit:read", "audit:export"],
     admin: ["read", "write", "ai", "admin", "ontology:read", "ontology:write", "orchestrator:run", "cases:read", "cases:write", "ledger:write", "audit:read", "audit:export", "governance:admin"]
   };
-  return { tenant, actor, role, scopes: ROLE_SCOPES[role] || ROLE_SCOPES.viewer, sso: true,
-    claims: { iss: payload.iss, aud: payload.aud, sub: payload.sub } };
+  return {
+    tenant, actor, role,
+    clearance: ROLE_CLEARANCE[role] ?? ROLE_CLEARANCE.viewer,
+    scopes: ROLE_SCOPES[role] || ROLE_SCOPES.viewer,
+    sso: true,
+    claims: { iss: payload.iss, aud: payload.aud, sub: payload.sub }
+  };
 }
 
 async function simpleAuth(request, env) {
   const token = bearer(request);
   if (!token) return null;
   if (env.ASTON_API_TOKEN && token === env.ASTON_API_TOKEN) {
+    const headerRole = String(request.headers.get("X-Aston-Role") || "admin").toLowerCase();
+    const role = ["viewer", "operator", "compliance", "admin"].includes(headerRole) ? headerRole : "admin";
     return {
       tenant: request.headers.get("X-Tenant") || "default",
       actor: request.headers.get("X-Aston-Actor") || "api-token",
-      role: "admin",
-      scopes: ["read", "write", "ai", "admin", "governance:admin", "audit:read", "audit:export"]
+      role,
+      clearance: ROLE_CLEARANCE[role],
+      scopes: role === "admin"
+        ? ["read", "write", "ai", "admin", "governance:admin", "audit:read", "audit:export"]
+        : ["read", "write", "ontology:read", "cases:read"]
     };
   }
   if (env.ASTON_JWT_SECRET) {
@@ -180,12 +205,30 @@ export async function handleSecurity(request, env, path, method, cors = {}) {
 
   if (method === "GET" && path === "/v1/security/status") {
     return json({
-      ok: true, phase: "3-security", version: VERSION,
-      features: { ols: true, als: true, multi_tenant: true, sso_oidc_jwt: true, sso_saml: "config_only" },
+      ok: true,
+      phase: "3-security",
+      version: VERSION,
+      features: {
+        ols: true,
+        als: true,
+        object_acl: true,
+        data_markings: true,
+        clearance: true,
+        multi_tenant: true,
+        sso_oidc_jwt: true,
+        sso_saml: "config_only"
+      },
+      markings: Object.values(MARKINGS),
+      role_clearance: ROLE_CLEARANCE,
       endpoints: {
-        status: "GET /v1/security/status", whoami: "GET /v1/security/whoami",
-        policies: "GET|POST /v1/security/policies", als_preview: "POST /v1/security/als/preview",
-        sso_config: "GET|PUT /v1/security/sso", sso_validate: "POST /v1/security/sso/validate",
+        status: "GET /v1/security/status",
+        whoami: "GET /v1/security/whoami",
+        acl: "GET|POST /v1/security/acl",
+        markings: "GET|POST /v1/security/markings",
+        check: "POST /v1/security/access/check",
+        policies: "GET|POST /v1/security/policies",
+        als_preview: "POST /v1/security/als/preview",
+        sso: "GET|PUT /v1/security/sso",
         audit: "GET /v1/security/audit"
       }
     }, 200, cors);
@@ -200,10 +243,88 @@ export async function handleSecurity(request, env, path, method, cors = {}) {
 
   if (method === "GET" && path === "/v1/security/whoami") {
     return json({
-      ok: true, tenant: auth.tenant, actor: auth.actor, role: auth.role || null,
-      scopes: auth.scopes, sso: Boolean(auth.sso),
-      als_profile: DEFAULT_ALS[auth.role || "viewer"] || DEFAULT_ALS.viewer, multi_tenant: true
+      ok: true,
+      tenant: auth.tenant,
+      actor: auth.actor,
+      role: auth.role || null,
+      clearance: clearanceOf(auth),
+      scopes: auth.scopes,
+      sso: Boolean(auth.sso),
+      als_profile: DEFAULT_ALS[auth.role || "viewer"] || DEFAULT_ALS.viewer,
+      multi_tenant: true,
+      phase: "3-security"
     }, 200, cors);
+  }
+
+  // ---- Object ACL ----
+  if (method === "GET" && path === "/v1/security/acl") {
+    const kind = url.searchParams.get("resource_kind") || "entity";
+    const rid = url.searchParams.get("resource_id");
+    if (!rid) return json({ ok: false, error: "resource_id_required" }, 400, cors);
+    const rows = await listAcl(db, tenant, kind, rid);
+    const marking = await getResourceMarking(db, tenant, kind, rid);
+    return json({ ok: true, resource_kind: kind, resource_id: rid, marking, acl: rows }, 200, cors);
+  }
+
+  if (method === "POST" && path === "/v1/security/acl") {
+    if (!auth.scopes?.includes("admin") && !auth.scopes?.includes("governance:admin"))
+      return json({ ok: false, error: "forbidden", required_scope: "admin" }, 403, cors);
+    const body = await readJson(request);
+    if (!body?.resource_id || !body?.principal)
+      return json({ ok: false, error: "resource_id_and_principal_required" }, 400, cors);
+    const result = await grantAcl(db, tenant, {
+      resource_kind: body.resource_kind || "entity",
+      resource_id: String(body.resource_id),
+      principal: String(body.principal),
+      principal_kind: body.principal_kind || "actor",
+      can_read: body.can_read !== false,
+      can_write: Boolean(body.can_write),
+      can_action: Boolean(body.can_action),
+      can_share: Boolean(body.can_share),
+      marking: body.marking || null
+    });
+    await audit(env, tenant, auth.actor, "security.acl.grant", body.resource_id, body);
+    return json({ ok: true, ...result }, 201, cors);
+  }
+
+  // ---- Data markings ----
+  if (method === "GET" && path === "/v1/security/markings") {
+    const kind = url.searchParams.get("resource_kind") || "entity";
+    const rid = url.searchParams.get("resource_id");
+    if (rid) {
+      const marking = await getResourceMarking(db, tenant, kind, rid);
+      return json({ ok: true, resource_kind: kind, resource_id: rid, marking, catalog: MARKINGS }, 200, cors);
+    }
+    return json({ ok: true, catalog: MARKINGS, role_clearance: ROLE_CLEARANCE }, 200, cors);
+  }
+
+  if (method === "POST" && path === "/v1/security/markings") {
+    if (!auth.scopes?.includes("admin") && !auth.scopes?.includes("governance:admin") && auth.role !== "compliance")
+      return json({ ok: false, error: "forbidden" }, 403, cors);
+    const body = await readJson(request);
+    if (!body?.resource_id || !body?.marking)
+      return json({ ok: false, error: "resource_id_and_marking_required" }, 400, cors);
+    try {
+      const result = await setResourceMarking(
+        db, tenant, body.resource_kind || "entity", String(body.resource_id),
+        body.marking, auth.actor
+      );
+      await audit(env, tenant, auth.actor, "security.marking.set", body.resource_id, result);
+      return json({ ok: true, ...result }, 201, cors);
+    } catch (e) {
+      return json({ ok: false, error: String(e.message || e) }, 400, cors);
+    }
+  }
+
+  // Access check (for clients / agents before acting)
+  if (method === "POST" && path === "/v1/security/access/check") {
+    const body = await readJson(request);
+    const kind = body?.resource_kind || "entity";
+    const rid = body?.resource_id;
+    const perm = body?.permission || "read";
+    if (!rid) return json({ ok: false, error: "resource_id_required" }, 400, cors);
+    const result = await checkObjectAccess(db, auth, kind, rid, perm);
+    return json({ ok: true, ...result, actor: auth.actor, role: auth.role, clearance: clearanceOf(auth) }, 200, cors);
   }
 
   if (method === "GET" && path === "/v1/security/policies") {
@@ -335,4 +456,4 @@ export async function handleSecurity(request, env, path, method, cors = {}) {
   return json({ ok: false, error: "not_found", path }, 404, cors);
 }
 
-export { DEFAULT_ALS };
+export { DEFAULT_ALS, checkObjectAccess, canClearance, redactByRole, MARKINGS };

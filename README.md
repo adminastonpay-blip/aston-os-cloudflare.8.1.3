@@ -1,27 +1,26 @@
 # ASTON OS (Cloudflare Worker)
 
-**main @ v10.5.0** — Edge operational intelligence: ontology, multi-agent orchestrator, cases, governance, fusion, Foundry core, Truth Receipts, metrics, `/ui` graph + PoV kit.
+**v11.5.0 — Phase 2 AIP** — Edge operational intelligence: ontology graph, Foundry core, AIP plan→approve→execute, multi-agent orchestrator, cases, Truth Receipts.
 
 ## Quick links
-- Deploy: see **[DEPLOY.md](./DEPLOY.md)**
-- Roadmap: [ROADMAP.md](./ROADMAP.md)
-- UI (after deploy): `https://<worker>/ui`
+- Deploy: **[DEPLOY.md](./DEPLOY.md)**
+- Phase 1: **[PHASE_1_ONTOLOGY.md](./PHASE_1_ONTOLOGY.md)**
+- Phase 2: **[PHASE_2_AIP.md](./PHASE_2_AIP.md)**
+- UI: `https://<worker>/ui`
 
-## Modules (A–L)
+## Modules
 | Area | Routes |
 |------|--------|
-| Ontology / Foundry | `/v1/ontology`, `/v1/foundry`, `/v1/search` |
-| Orchestrator | `/v1/orchestrator` |
+| AIP (HITL) | `/v1/aip/plan`, `/v1/aip/plans/:id/approve`, `/execute` |
+| Orchestrator | `/v1/orchestrator/run` |
 | Cases | `/v1/cases` |
-| Governance | `/v1/governance` |
-| Fusion | `/v1/fusion` |
-| Truth Receipts | `/v1/receipts` |
-| Metrics | `/v1/metrics` |
-| PoV | `/v1/pov`, `/v1/capabilities` |
-| UI | `/ui` |
+| Receipts | `/v1/receipts` |
+| Ontology | `/v1/ontology` |
+| Foundry | `/v1/foundry`, `/v1/search` |
+| Capabilities | `/v1/capabilities` |
 
 ## Auth
-`Authorization: Bearer <ASTON_API_TOKEN>` and optional `X-Tenant`.
+`Authorization: Bearer <ASTON_API_TOKEN>` + optional `X-Tenant`, `X-Aston-Actor`.
 
 ## Honest scope
-This is an edge-native ops stack, not full Palantir Foundry parity. LLM/orchestrator latency is not sub-100ms end-to-end; edge-core benchmarks are separate.
+Moving toward Palantir-class ontology + AIP on the edge. Not full Foundry/AIP parity.

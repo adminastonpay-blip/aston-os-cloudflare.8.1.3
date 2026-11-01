@@ -1,7 +1,7 @@
 /**
- * ASTON OS 11.3.1 — MAIN (.mjs = always ES module for Wrangler)
+ * ASTON OS 11.8.0 — Phase 5 Foundry OLS
  */
-const VERSION = "11.3.1";
+const VERSION = "11.8.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -20,7 +20,7 @@ function corsHeaders(request) {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
     "access-control-allow-headers":
-      "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Sovereign-Master-Key,X-Sovereign-License,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
+      "Authorization,Content-Type,X-Tenant,X-Aston-Actor,X-Aston-Role,X-Sovereign-Master-Key,X-Sovereign-License,X-Shopify-Topic,X-Shopify-Hmac-Sha256",
     "access-control-max-age": "86400",
     vary: "Origin"
   };
@@ -45,10 +45,13 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "11-native",
-          differentiators: "/v1/native/capabilities",
-          sovereign: "/v1/sovereign/status",
-          billing: "/v1/billing/rate-card"
+          phase: "5-foundry-acl",
+          capabilities: "/v1/capabilities",
+          foundry: "/v1/foundry",
+          pipelines: "/v1/pipelines/catalog",
+          security: "/v1/security/status",
+          ontology: "/v1/ontology",
+          aip: "/v1/aip"
         },
         200,
         cors
