@@ -1,6 +1,6 @@
 /**
  * ASTON OS routes
- * Phase 1 Ontology · Phase 2 AIP · Phase 3 Security
+ * Phase 1 Ontology · Phase 2 AIP · Phase 3 Security · Phase 4 Pipelines
  */
 import { handleUI } from "./ui.js";
 import { handleConnectors } from "./connectors.js";
@@ -19,6 +19,7 @@ import { handleOrchestrator } from "./orchestrator.js";
 import { handleCases } from "./cases.js";
 import { handleReceipts } from "./receipts.js";
 import { handleAip } from "./aip.js";
+import { handlePipelines } from "./pipelines.js";
 import { authenticate } from "./auth.js";
 
 export async function handleRequest(request, env, ctx, path, method, cors, json) {
@@ -43,7 +44,8 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     path.startsWith("/v1/orchestrator") ||
     path.startsWith("/v1/cases") ||
     path.startsWith("/v1/receipts") ||
-    path.startsWith("/v1/aip")
+    path.startsWith("/v1/aip") ||
+    path.startsWith("/v1/pipelines")
   ) {
     const auth = await authenticate(request, env);
     if (!auth) {
@@ -54,6 +56,7 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     if (path.startsWith("/v1/cases")) return handleCases(request, env, auth, cors);
     if (path.startsWith("/v1/receipts")) return handleReceipts(request, env, auth, cors);
     if (path.startsWith("/v1/aip")) return handleAip(request, env, auth, cors);
+    if (path.startsWith("/v1/pipelines")) return handlePipelines(request, env, auth, cors);
     return handleFoundry(request, env, auth, cors);
   }
 
@@ -70,33 +73,27 @@ export async function handleRequest(request, env, ctx, path, method, cors, json)
     return json(
       {
         ok: true,
-        phase: "3-security",
-        version: "11.6.0",
+        phase: "4-security-pipelines",
+        version: "11.7.0",
         pillars: {
           ontology: true,
           foundry: true,
           aip: true,
-          orchestrator: true,
-          cases: true,
-          receipts: true,
           security: true,
-          object_acl: true,
-          data_markings: true,
+          pipelines: true,
           connectors: true,
           ai: true
         },
         routes: {
-          security: [
-            "GET /v1/security/status",
-            "GET /v1/security/whoami",
-            "GET|POST /v1/security/acl",
-            "GET|POST /v1/security/markings",
-            "POST /v1/security/access/check",
-            "POST /v1/security/als/preview"
+          pipelines: [
+            "GET /v1/pipelines/catalog",
+            "POST /v1/pipelines/run",
+            "POST /v1/pipelines/run/:template_id",
+            "GET /v1/pipelines/runs"
           ],
-          aip: ["POST /v1/aip/plan", "POST /v1/aip/plans/:id/approve"],
-          ontology: ["GET /v1/ontology", "GET /v1/ontology/entities"],
-          foundry: ["GET /v1/foundry", "GET /v1/search"]
+          security: ["GET /v1/security/status", "POST /v1/security/markings"],
+          aip: ["POST /v1/aip/plan"],
+          ontology: ["GET /v1/ontology/entities"]
         }
       },
       200,

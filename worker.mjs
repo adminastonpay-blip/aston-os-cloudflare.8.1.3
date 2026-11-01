@@ -1,7 +1,7 @@
 /**
- * ASTON OS 11.6.1 — Phase 3.1 ACL enforce on ontology
+ * ASTON OS 11.7.0 — Phase 4 Security Pipelines
  */
-const VERSION = "11.6.1";
+const VERSION = "11.7.0";
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -45,13 +45,12 @@ export default {
           version: VERSION,
           runtime: "cloudflare-workers",
           format: "es-module",
-          phase: "3.1-acl-enforce",
+          phase: "4-security-pipelines",
           capabilities: "/v1/capabilities",
+          pipelines: "/v1/pipelines/catalog",
           security: "/v1/security/status",
           ontology: "/v1/ontology",
-          aip: "/v1/aip",
-          foundry: "/v1/foundry",
-          orchestrator: "/v1/orchestrator"
+          aip: "/v1/aip"
         },
         200,
         cors
