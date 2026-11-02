@@ -7,9 +7,10 @@
     "deploy": "wrangler deploy --config wrangler.toml",
     "dry": "wrangler deploy --dry-run --config wrangler.toml",
     "dev": "wrangler dev",
-    "test": "node run.mjs"
+    "test": "node run.mjs",
+    "check": "wrangler deploy --dry-run --config wrangler.toml"
   },
   "devDependencies": {
-    "wrangler": "4.153.0"
+    "wrangler": "4.156.1"
   }
 }

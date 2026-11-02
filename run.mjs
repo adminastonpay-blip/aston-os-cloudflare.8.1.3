@@ -1,4 +1,4 @@
-import worker from "./worker.js";
+import worker from "./index.js";
 import assert from "node:assert/strict";
 
 const env = {
